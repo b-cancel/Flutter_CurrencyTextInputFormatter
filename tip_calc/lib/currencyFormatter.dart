@@ -71,28 +71,28 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
     print("editing*************************" + oldValue.text + " => " + newValue.text);
 
-    // something has been added to the field
-    // NOTE: we don't care about cursor position here because they wouldn't OR shouldn't trigger this
-    // on the off chance that they do we would see that nothing new was added and simply return the value without modification
-    if(newValue.text != oldValue.text){
+    if(newValue.text != oldValue.text){ /// NOTE this also includes changes to just our mask (by removing or replacing a spacer)
 
-      String oldValueText = oldValue.text;
-      String newValueText = newValue.text;
+      //save all the variables we need to use to determine how to proceed
+      oldValue = correctTextEditingValueOffsets(oldValue);
+      String oldText = oldValue.text;
       int oldBaseOffset = oldValue.selection.baseOffset;
       int oldExtentOffset = oldValue.selection.extentOffset;
 
-      //make sure that the offsets are read in appropriately (for some reason flutter does not guarantee this)
-      if(oldExtentOffset < oldBaseOffset){
-        var temp = oldBaseOffset;
-        oldBaseOffset = oldExtentOffset;
-        oldExtentOffset = temp;
+      newValue = correctTextEditingValueOffsets(newValue);
+      String newText = newValue.text;
+      int newBaseOffset = newValue.selection.baseOffset;
+      int newExtentOffset = newValue.selection.extentOffset;
+
+      //handle masking (assumes that if this is off the string doesn't have a mask)
+      if(maskWithSpacers){
+        //TODO... REMOVE OUR SPACERS [only our spacers] (off both old and new value)
       }
 
-      //solve the strange edge case where either offset is less than 0
-      oldBaseOffset = (oldBaseOffset < 0) ? 0 : oldBaseOffset;
-      oldExtentOffset = (oldExtentOffset < 0) ? 0 : oldExtentOffset;
+      /// -------------------------BEEF BELOW-------------------------
 
-      if(addedCharacterCount(oldValueText, newValueText, oldBaseOffset, oldExtentOffset) > 0){
+      //an optimization we can make if we notice that we are ONLY removing characters
+      if(addedCharacterCount(oldText, newText, oldBaseOffset, oldExtentOffset) > 0){
         print("WE MUST HAVE ADDED AND MAYBE REMOVED CHARACTERS");
         print("*************************" + oldValue.text + " => " + newValue.text);
 
@@ -101,71 +101,56 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         //TODO... inserting a period between alot of numbers makes the cursor go behind where it should (only when truncation is required)
         //TODO... inserting a character after that period does the same (only when truncation is required)
 
-        print("0: " + newValueText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
+        print("0: " + newText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
         // (0) remove everything except NUMBERS AND the SEPARATOR
         /// NOTE: this would also remove the mask if we were using it
         /// NOTE: we could use whitelisting but we used this since some bugs arose from using WhiteListing and another custom formatter and I was trying to avoid them
-        var result = removeAllButNumbersAndSeparator(newValueText, separator, oldBaseOffset, oldExtentOffset);
-        newValueText = result[0];
+        var result = removeAllButNumbersAndSeparator(newText, separator, oldBaseOffset, oldExtentOffset);
+        newText = result[0];
         oldBaseOffset = result[1];
         oldExtentOffset = result[2];
 
         //-----Operate ONLY on new string (newly added characters) [so oldBaseOffset is NOT shifted]
 
-        print("1: " + newValueText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
+        print("1: " + newText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
         // (1) make sure that we allow at most one SEPARATOR
-        newValueText = removeAllButOneSeparator(newValueText, separator, oldBaseOffset, oldExtentOffset, addedCharacterCount(oldValueText, newValueText, oldBaseOffset, oldExtentOffset));
-        print("2: " + newValueText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
+        newText = removeAllButOneSeparator(newText, separator, oldBaseOffset, oldExtentOffset, addedCharacterCount(oldText, newText, oldBaseOffset, oldExtentOffset));
+        print("2: " + newText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
         // (2) TRUNCATE the amount needed dependant on the currency format
-        newValueText = removeExtraValuesAfterSeparator(newValueText, precision, showSinglePeriod: true);
-        print("3: " + newValueText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
+        newText = removeExtraValuesAfterSeparator(newText, precision, showSinglePeriod: true);
+        oldBaseOffset = (oldBaseOffset < newText.length) ? oldBaseOffset : newText.length; //must not be larger than length
+        print("3: " + newText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
         // (3) Selection Correction
         /// NOTE: added character count may no longer be accurate
-        oldBaseOffset = selectionCorrection(addedCharacterCount(oldValueText, newValueText, oldBaseOffset, oldExtentOffset), oldBaseOffset); //TODO... check
-        print("4: " + newValueText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
+        oldBaseOffset = selectionCorrection(addedCharacterCount(oldText, newText, oldBaseOffset, oldExtentOffset), oldBaseOffset); //TODO... check
+        print("4: " + newText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
       }
       else{ //we only removed characters (so we could have issues with the mask, IF it exists)
         //-----Calculate how many characters we removed before we remove the mask
         /// NOTE: we know that the old and new string are different AND that we didn't add anything new
         /// So we KNOW that we must have at the very least removed something (it as well be the mask)
-        int numberOfCharsRemoved =  oldValueText.length - newValueText.length;
-
-        //-----Remove the Mask IF we are using it
-        // needed because if we removed something that isn't part of the mask, we need to remake the mask
-        if(maskWithSpacers){
-          //TODO... remove the mask
-        }
-        /// ELSE we are already in double format
+        int numberOfCharsRemoved =  oldText.length - newText.length;
 
         //-----Adjust the oldBaseOffset (again)
         // oldBaseOffset would have already been shifted if removing the mask would have affected it
         oldBaseOffset = oldBaseOffset - numberOfCharsRemoved;
       }
 
-      //-----Inform necessary items about the change
-      runAfterComplete(convertToDouble((newValueText)));
+      /// -------------------------BEEF ABOVE-------------------------
 
-      //-----mask our string with the desired commas
+      //run passed function that saves our currency as a double
+      runAfterComplete(convertToDouble((newText)));
+
+      //handle masking
       if(maskWithSpacers){
         //TODO... add our mask
         //TODO... make sure that when you add your mask your offsets don't mess up
       }
 
-      //-----correct our oldBaseOffset IF needed
-      oldBaseOffset = (oldBaseOffset < 0) ? 0 : oldBaseOffset; //must not be smaller than 0
-      oldBaseOffset = (oldBaseOffset < newValueText.length) ? oldBaseOffset : newValueText.length; //must not be larger than length
+      print("-----RIGHT BEFORE RETURN " + newText + " cursor " + oldBaseOffset.toString());
 
-      print("-----RIGHT BEFORE RETURN " + newValueText + " cursor " + oldBaseOffset.toString());
-
-      //-----return our processed string
-      return new TextEditingValue(
-        text: newValueText,
-        /// NOTE: I'm using this instead of "TextSelection.collapsed()" because at the time of this writing it was causing issues for some reason
-        selection: new TextSelection(baseOffset: oldBaseOffset, extentOffset: oldBaseOffset),
-        /// We don't worry about composing because in no instance is it necessary to select anything for the user
-        /// if the user deletes by the delete key they are not expecting anything to be selected regardless of how many characters they had selected or where
-        /// else the user adds something by either typing or pasting the user expects the cursor to be at the end of whatever they added
-      );
+      //return our processed string
+      return correctNewTextEditingValueOffsets(newText, oldBaseOffset);
     }
     else return newValue; //nothing has changed and this ran when it should not have
     /// NOTE: the code above HAS to return newValue exactly otherwise we will indefinitely correct our value
@@ -265,6 +250,7 @@ String removeExtraValuesAfterSeparator(String string, int valuesAfterSeparator, 
 
 // NOTE: the newStrLen that is passed here is from the string after all the necessary corrections
 int selectionCorrection(int oldBaseOffset, int countOfNewCharsThatPassedFilters){
+  print("characters added " + countOfNewCharsThatPassedFilters.toString());
   if(countOfNewCharsThatPassedFilters > 0) return (oldBaseOffset + countOfNewCharsThatPassedFilters); //place the cursor after all the inserted characters
   else return oldBaseOffset;
 
@@ -341,6 +327,53 @@ String maskWithSpacers(String str, String separator, String spacer){
   }
 
   return str;
+}
+
+/// NOTE: we want to modify the offsets to show up in the locations they would if the mask was removed
+List removeSpacer(String value, int baseOffset, int extentOffset, String spacer){
+  return [value, baseOffset, extentOffset];
+}
+
+//---------------OFFSET helpers
+
+TextEditingValue correctNewTextEditingValueOffsets(String text, int offset){
+  return correctTextEditingValueOffsets(
+      TextEditingValue(
+        text: text,
+        /// NOTE: I'm using this instead of "TextSelection.collapsed()" because at the time of this writing it was causing issues for some reason
+        selection: TextSelection(baseOffset: offset, extentOffset: offset),
+        /// We don't worry about composing because in no instance is it necessary to select anything for the user
+        /// if the user deletes by the delete key they are not expecting anything to be selected regardless of how many characters they had selected or where
+        /// else the user adds something by either typing or pasting the user expects the cursor to be at the end of whatever they added
+      )
+  );
+}
+
+/// NOTE: this correct TextEditingValues in a way that I would expect them to do so automatically (but don't)
+TextEditingValue correctTextEditingValueOffsets(TextEditingValue value){
+  String text = value.text;
+  int baseOffset = lockOffsetsWithinRange(text, value.selection.baseOffset);
+  int extentOffset = lockOffsetsWithinRange(text, value.selection.extentOffset);
+  var correctOffsets = correctOverlappingOffsets(baseOffset, extentOffset);
+  return TextEditingValue(
+    text: text,
+    selection: TextSelection(baseOffset: correctOffsets[0], extentOffset: correctOffsets[1]),
+  );
+}
+
+int lockOffsetsWithinRange(String str, int offset){
+  offset = (offset < 0) ? 0 : offset;
+  offset = (str.length < offset) ? str.length : offset;
+  return offset;
+}
+
+List correctOverlappingOffsets(int baseOffset, int extentOffset){
+  if(extentOffset < baseOffset){ //we WANT oldBaseOffset to always be <= oldExtentOffset
+    var temp = baseOffset;
+    baseOffset = extentOffset;
+    extentOffset = temp;
+  }
+  return [baseOffset, extentOffset];
 }
 
 //---------------SIDE helpers
