@@ -350,6 +350,49 @@ String addSpacers(String str, String separator, String spacer){
 }
  */
 
+/// NOTE: assume the string has AT MOST one separator
+String currencyMask(String value, String separator, String spacer){
+  return addSpacers(TextEditingValue(text: value), separator, spacer).text;
+}
+
+/// NOTE: assumes the string has AT MOST one separator
+TextEditingValue addSpacers(TextEditingValue value, String separator, String spacer){
+  //create references to our variables
+  String text = value.text;
+  int baseOffset = value.selection.baseOffset;
+  int extentOffset = value.selection.extentOffset;
+
+  //prepare some variables before the main loop
+  bool passedSeparator = (text.contains(separator)) ? false : true;
+  int numbersPassed = 0;
+
+  //read the string from right to left to find the separator and then start adding spacer
+  for(int i = text.length - 1; i >= 0; i--){
+    if(passedSeparator == false){
+      if(text[i] == separator) passedSeparator = true;
+    }
+    else{
+      if(numbersPassed == 3){ //we are the 4th number and can insert a spacer to our right
+        int spacerIndex = i + 1;
+
+        //TODO... shift the cursor as needed (shift baseOffset and extentOffset separately)
+
+        text = text.substring(0, spacerIndex) + spacer + text.substring(spacerIndex, text.length); //add a spacer to our right
+        numbersPassed = 1;
+      }
+      else numbersPassed++;
+    }
+  }
+
+  //return the corrected values
+  return correctTextEditingValueOffsets(
+      TextEditingValue(
+        text: text,
+        selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
+      )
+  );
+}
+
 /// NOTE: we want to modify the offsets to show up in the locations they would if the mask was removed
 TextEditingValue removeSpacers(String value, int baseOffset, int extentOffset, String spacer){
   for(int index = value.length -1; index >= 0; index--){
