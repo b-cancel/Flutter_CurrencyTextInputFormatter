@@ -69,7 +69,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
   // So. We need to plan for both scenarios to avoid bugs
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
 
-    print("editing*************************" + oldValue.text + " => " + newValue.text);
+    printDebug("RAN", oldValue, newValue);
 
     if(newValue.text != oldValue.text){ /// NOTE this also includes changes to just our mask (by removing or replacing a spacer)
 
@@ -84,11 +84,15 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
       int newBaseOffset = newValue.selection.baseOffset;
       int newExtentOffset = newValue.selection.extentOffset;
 
+      printDebug("BEFORE MASK REMOVE", oldValue, newValue);
+
       //handle masking (assumes that if this is off the string doesn't have a mask)
       if(maskWithSpacers){
         oldValue = removeSpacers(oldText, oldBaseOffset, oldExtentOffset, spacer);
         newValue = removeSpacers(newText, newBaseOffset, newExtentOffset, spacer);
       }
+
+      printDebug("AFTER MASK REMOVE", oldValue, newValue);
 
       /// -------------------------MAIN ERROR CORRECTION BELOW-------------------------
 
@@ -139,6 +143,8 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
       /// -------------------------MAIN ERROR CORRECTION ABOVE-------------------------
 
+      printDebug("BEFORE MASK ADD", oldValue, newValue);
+
       //run passed function that saves our currency as a double
       runAfterComplete(convertToDouble((newText)));
 
@@ -148,7 +154,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         //TODO... make sure that when you add your mask your offsets don't mess up
       }
 
-      print("-----RIGHT BEFORE RETURN " + newText + " cursor " + oldBaseOffset.toString());
+      printDebug("END", oldValue, newValue);
 
       //return our processed string
       return correctNewTextEditingValueOffsets(newText, oldBaseOffset);
@@ -263,8 +269,21 @@ int selectionCorrection(int oldBaseOffset, int countOfNewCharsThatPassedFilters)
   // in all cases, going to oldBaseOffset works
 }
 
+/// NOTE: assumes the string has AT MOST one separator
+double convertToDouble(String str){
+  String strWithPeriodSeparator = "";
+  for(int i=0; i<str.length; i++){
+    if(48 <= str.codeUnitAt(i) && str.codeUnitAt(i) <= 57) strWithPeriodSeparator = strWithPeriodSeparator + str[i];
+    else strWithPeriodSeparator = strWithPeriodSeparator + "."; //replace the separator for a period for easy parsing as a double
+  }
+  return (strWithPeriodSeparator == '.') ? 0 : double.parse(strWithPeriodSeparator);
+}
+
+/// -------------------------EVERYTHING BELOW HAS BEEN CHECKED-------------------------
+
 //---------------MASK helpers
 
+/*
 /// NOTE: we might be able to easily merge this with "maskWithSpacers", the differences are marked
 /// NOTE: assumes the string has AT MOST one separator
 /// WARNING: UNTESTED
@@ -329,18 +348,7 @@ String addSpacers(String str, String separator, String spacer){
 
   return str;
 }
-
-/// NOTE: assumes the string has AT MOST one separator
-double convertToDouble(String str){
-  String strWithPeriodSeparator = "";
-  for(int i=0; i<str.length; i++){
-    if(48 <= str.codeUnitAt(i) && str.codeUnitAt(i) <= 57) strWithPeriodSeparator = strWithPeriodSeparator + str[i];
-    else strWithPeriodSeparator = strWithPeriodSeparator + "."; //replace the separator for a period for easy parsing as a double
-  }
-  return (strWithPeriodSeparator == '.') ? 0 : double.parse(strWithPeriodSeparator);
-}
-
-/// -------------------------EVERYTHING BELOW HAS BEEN CHECKED-------------------------
+ */
 
 /// NOTE: we want to modify the offsets to show up in the locations they would if the mask was removed
 TextEditingValue removeSpacers(String value, int baseOffset, int extentOffset, String spacer){
@@ -479,4 +487,14 @@ String ensureValuesAfterSeparator(String str, String separator, int precision, {
 
     return str;
   }
+}
+
+//---------------DEBUGGING
+
+void printDebug(String descrip, TextEditingValue oldValue, TextEditingValue newValue){
+  print(descrip + "*************************" + oldValue.text
+      + " [" + oldValue.selection.baseOffset.toString() + "->" + oldValue.selection.extentOffset.toString() + "]"
+  + " => " + newValue.text
+      + " [" + newValue.selection.baseOffset.toString() + "->" + newValue.selection.extentOffset.toString() + "]"
+  );
 }
