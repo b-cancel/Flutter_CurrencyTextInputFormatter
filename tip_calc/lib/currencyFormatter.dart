@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 /// LEARNED: dart can fail silently
 ///   1. run subtring with an index that points to characters that a string doesn't cover
 ///   2. try to += to a string set to null
+///   3. double.parse parsing just a period
 
 /// NOTE: I found some FLUTTER BUGS (while using android) that made this asset a pain to make
 /// 1. I can select the text in the input field but I can't move the start tick, ONLY the end tick
@@ -99,7 +100,6 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
         //TODO... inserting a period between alot of numbers makes the cursor go behind where it should (only when truncation is required)
         //TODO... inserting a character after that period does the same (only when truncation is required)
-        //TODO... pressing anything (except the period and numbers) after the last value brings the cursor back one level
 
         print("0: " + newValueText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
         // (0) remove everything except NUMBERS AND the SEPARATOR
@@ -117,7 +117,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         newValueText = removeAllButOneSeparator(newValueText, separator, oldBaseOffset, oldExtentOffset, addedCharacterCount(oldValueText, newValueText, oldBaseOffset, oldExtentOffset));
         print("2: " + newValueText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
         // (2) TRUNCATE the amount needed dependant on the currency format
-        newValueText = removeExtraValuesAfterSeparator(newValueText, precision);
+        newValueText = removeExtraValuesAfterSeparator(newValueText, precision, showSinglePeriod: true);
         print("3: " + newValueText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
         // (3) Selection Correction
         /// NOTE: added character count may no longer be accurate
@@ -148,7 +148,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
       //-----mask our string with the desired commas
       if(maskWithSpacers){
         //TODO... add our mask
-        //TODO... make sure that when you add your mask
+        //TODO... make sure that when you add your mask your offsets don't mess up
       }
 
       //-----correct our oldBaseOffset IF needed
@@ -194,7 +194,7 @@ List removeAllButNumbersAndSeparator(String str, String separator, int oldBaseOf
   return [
     str,
     (oldBaseOffset < 0) ? 0 : oldBaseOffset,
-    (oldExtentOffset >= str.length) ? str.length - 1 : oldExtentOffset
+    (oldExtentOffset > str.length) ? str.length : oldExtentOffset
   ];
 }
 
@@ -222,8 +222,9 @@ String removeAllButOneSeparator(String str, String separator, int baseOffset, in
       //  - because of the above we have to make an extra check otherwise substring will duplicate characters at the left end
       String beforeInsertion = (0 == baseOffset) ? "" : str.substring(0, baseOffset);
       int lastAdditionIndex = baseOffset + addedCharCount;
+      /// NOTE: this may seem like it requires (lastAdditionIndex + 1) but it doesn't
       String insertion = str.substring(baseOffset, lastAdditionIndex); //NOTE: this will NEVER be empty
-      String afterInsertion = (lastAdditionIndex == str.length) ? "" : str.substring(lastAdditionIndex, str.length);
+      String afterInsertion = ((lastAdditionIndex) == str.length) ? "" : str.substring(lastAdditionIndex, str.length);
 
       //remove separators from the back OF THE INSERTION until only the FIRST one is left
       for(int index = insertion.length - 1; insertion.indexOf(separator) != insertion.lastIndexOf(separator); index--){
@@ -246,7 +247,7 @@ String removeAllButOneSeparator(String str, String separator, int baseOffset, in
 
 /// NOTE: assumes the string has AT MOST one separator
 /// assumes that you want to remove the separator if there are no values after it
-String removeExtraValuesAfterSeparator(String string, int valuesAfterSeparator){
+String removeExtraValuesAfterSeparator(String string, int valuesAfterSeparator, {bool showSinglePeriod = false}){
   if(string.contains('.')){
     int indexOfDecimal = string.indexOf('.');
     var beforeSeparator = (0 == indexOfDecimal) ? "" : string.substring(0, indexOfDecimal); //inc, exc
@@ -254,7 +255,9 @@ String removeExtraValuesAfterSeparator(String string, int valuesAfterSeparator){
     int stringLength = (longestAllowableStringLength < string.length) ? longestAllowableStringLength : string.length;
     var separatorToEnd = string.substring(indexOfDecimal, stringLength); //inc, exc
     var result  = beforeSeparator + separatorToEnd;
-    result = (valuesAfterSeparator == 0) ? result.substring(0, result.length - 1) : result;
+    if(showSinglePeriod == false){
+      result = (valuesAfterSeparator == 0) ? result.substring(0, result.length - 1) : result;
+    }
     return result;
   }
   else return string;
@@ -367,7 +370,7 @@ double convertToDouble(String str){
     if(48 <= str.codeUnitAt(i) && str.codeUnitAt(i) <= 57) strWithPeriodSeparator = strWithPeriodSeparator + str[i];
     else strWithPeriodSeparator = strWithPeriodSeparator + "."; //replace the separator for a period for easy parsing as a double
   }
-  return double.parse(strWithPeriodSeparator);
+  return (strWithPeriodSeparator == '.') ? 0 : double.parse(strWithPeriodSeparator);
 }
 
 String removeCharAtIndex(String str, int index){
