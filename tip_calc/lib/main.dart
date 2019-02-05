@@ -43,7 +43,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget standardRow(var str, double num, {bool rightPercent = false}){
 
     String numString = removeExtraValuesAfterSeparator(num.toString(), (rightPercent) ? 0 : 2);
-    numString = maskWithSpacers(numString, '.', ',');
+    numString = addSpacers(numString, '.', ',');
     numString = ensureValuesAfterSeparator(numString, '.', (rightPercent) ? 0 : 2);
 
     double fontSize = 18.0;

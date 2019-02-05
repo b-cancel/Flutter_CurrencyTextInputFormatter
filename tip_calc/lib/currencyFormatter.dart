@@ -86,10 +86,11 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
       //handle masking (assumes that if this is off the string doesn't have a mask)
       if(maskWithSpacers){
-        //TODO... REMOVE OUR SPACERS [only our spacers] (off both old and new value)
+        oldValue = removeSpacers(oldText, oldBaseOffset, oldExtentOffset, spacer);
+        newValue = removeSpacers(newText, newBaseOffset, newExtentOffset, spacer);
       }
 
-      /// -------------------------BEEF BELOW-------------------------
+      /// -------------------------MAIN ERROR CORRECTION BELOW-------------------------
 
       //an optimization we can make if we notice that we are ONLY removing characters
       if(addedCharacterCount(oldText, newText, oldBaseOffset, oldExtentOffset) > 0){
@@ -136,7 +137,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         oldBaseOffset = oldBaseOffset - numberOfCharsRemoved;
       }
 
-      /// -------------------------BEEF ABOVE-------------------------
+      /// -------------------------MAIN ERROR CORRECTION ABOVE-------------------------
 
       //run passed function that saves our currency as a double
       runAfterComplete(convertToDouble((newText)));
@@ -307,7 +308,7 @@ List getMaskWithSpacersAndCursorIndex(String str, String separator, String space
 }
 
 /// NOTE: assumes the string has AT MOST one separator
-String maskWithSpacers(String str, String separator, String spacer){
+String addSpacers(String str, String separator, String spacer){
   bool passedSeparator = (str.contains(separator)) ? false : true;
   int numbersPassed = 0;
 
@@ -329,9 +330,37 @@ String maskWithSpacers(String str, String separator, String spacer){
   return str;
 }
 
+/// NOTE: assumes the string has AT MOST one separator
+double convertToDouble(String str){
+  String strWithPeriodSeparator = "";
+  for(int i=0; i<str.length; i++){
+    if(48 <= str.codeUnitAt(i) && str.codeUnitAt(i) <= 57) strWithPeriodSeparator = strWithPeriodSeparator + str[i];
+    else strWithPeriodSeparator = strWithPeriodSeparator + "."; //replace the separator for a period for easy parsing as a double
+  }
+  return (strWithPeriodSeparator == '.') ? 0 : double.parse(strWithPeriodSeparator);
+}
+
+/// -------------------------EVERYTHING BELOW HAS BEEN CHECKED-------------------------
+
 /// NOTE: we want to modify the offsets to show up in the locations they would if the mask was removed
-List removeSpacer(String value, int baseOffset, int extentOffset, String spacer){
-  return [value, baseOffset, extentOffset];
+TextEditingValue removeSpacers(String value, int baseOffset, int extentOffset, String spacer){
+  for(int index = value.length -1; index >= 0; index--){
+    if(value[index] == spacer){
+      //remove the character
+      value = removeCharAtIndex(value, index);
+
+      //shift the offset the left
+      if(index < baseOffset) baseOffset--;
+      if(index < extentOffset) extentOffset--;
+    }
+  }
+
+  return correctTextEditingValueOffsets(
+      TextEditingValue(
+        text: value,
+        selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
+      )
+  );
 }
 
 //---------------OFFSET helpers
@@ -378,34 +407,6 @@ List correctOverlappingOffsets(int baseOffset, int extentOffset){
 
 //---------------SIDE helpers
 
-/// NOTE: assumes (1) the string has AT MOST one separator (2) you don't desire less precision that you have
-String ensureValuesAfterSeparator(String str, String separator, int precision){
-  int separatorIndex = str.indexOf(separator);
-
-  //add a separator
-  if(separatorIndex == -1 && precision > 0){
-    str = str + separator;
-    separatorIndex = str.indexOf(separator);
-  }
-
-  //add digits to the end of your number as needed
-  int desiredLastIndex = separatorIndex + precision;
-  int additionsNeeded = desiredLastIndex - (str.length - 1);
-  for(int i = additionsNeeded; i > 0; i--) str = str + '0';
-
-  return str;
-}
-
-/// NOTE: assumes the string has AT MOST one separator
-double convertToDouble(String str){
-  String strWithPeriodSeparator = "";
-  for(int i=0; i<str.length; i++){
-    if(48 <= str.codeUnitAt(i) && str.codeUnitAt(i) <= 57) strWithPeriodSeparator = strWithPeriodSeparator + str[i];
-    else strWithPeriodSeparator = strWithPeriodSeparator + "."; //replace the separator for a period for easy parsing as a double
-  }
-  return (strWithPeriodSeparator == '.') ? 0 : double.parse(strWithPeriodSeparator);
-}
-
 String removeCharAtIndex(String str, int index){
   return str.substring(0, index) + str.substring(index + 1);
 }
@@ -419,7 +420,63 @@ int addedCharacterCount(String oldValue, String newValue, int oldBaseOffset, int
   if(numberOfCharsWeRemoved == 0){ //we didn't remove characters by selection
     //so we either removed a SINGLE character by deletion => string shortens by 1
     //OR added characters => string grows by X (the var would be 0 if we added NOT from a selection)
-    numberOfCharsWeRemoved = (newValue.length < oldValue.length) ? 1 : numberOfCharsWeRemoved;
+    numberOfCharsWeRemoved = (newValue.length < oldValue.length) ? 1 : 0;
   }
   return countDifference + numberOfCharsWeRemoved;
+}
+
+/// NOTE: assumes the string has AT MOST one separator
+String ensureValuesAfterSeparator(String str, String separator, int precision, {bool removeLoneSeparator: true}){
+  //grab the index of the separator
+  int separatorIndex = str.indexOf(separator);
+
+  //process the string
+  if(precision <= 0){
+    if(precision < 0){
+      if(separatorIndex != -1){
+        //remove all the values before the separator
+        for(int i = str.length - 1; i >= 0; i--){
+          if(str[i] == separator) break; //get out of the loop if needed
+          else str = removeCharAtIndex(str, i); //remove the characters at the right of the separator
+        }
+
+        //remove the lone separator if desired
+        if(removeLoneSeparator) str = removeCharAtIndex(str, separatorIndex);
+      }
+      /// ELSE... there is numbers to the right of the separator to remove
+    }
+
+    /// NOTE: by now the case that occurs when your precision is equal to 0 has been handled
+
+    if(precision == 0) return str;
+    else{ /// NOTE: precision is NEGATIVE
+      separatorIndex = str.indexOf(separator);
+
+      //if the precision is lower than 0 then you MUST remove the separator
+      if(separatorIndex != -1) str = removeCharAtIndex(str, separatorIndex);
+
+      //remove stuff from the back (make sure you don't remove more than the entire string)
+      precision = precision * -1; //turn the number positive
+      precision = (precision < str.length) ? precision : str.length;
+      for(int i = str.length - 1; precision > 0; i--, precision--){
+        str = removeCharAtIndex(str, i);
+      }
+
+      return str;
+    }
+  }
+  else{ /// NOTE: precision is POSITIVE
+    //add the separator if you don't already have it
+    if(separatorIndex == -1){
+      str = str + separator;
+      separatorIndex = str.indexOf(separator);
+    }
+
+    //add whatever the quantity of characters that you need to to meet the precision requirement
+    int desiredLastIndex = separatorIndex + precision;
+    int additionsNeeded = desiredLastIndex - (str.length - 1);
+    for(int i = additionsNeeded; i > 0; i--) str = str + '0';
+
+    return str;
+  }
 }
