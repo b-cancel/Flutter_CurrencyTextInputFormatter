@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 
 /// LEARNED: dart can fail silently
-///   1. run subtring with an index that points to characters that a string doesn't cover
+///   1. run sub string with an index that points to characters that a string doesn't cover
 ///   2. try to += to a string set to null
 ///   3. double.parse parsing just a period
 
@@ -35,6 +35,8 @@ import 'package:flutter/services.dart';
 /// 1. we only have a backspace key and not a delete key
 /// 2. you want to keep the separator that was typed first... so if you paste multiple separators you keep the one that is furthest to the left
 /// 3. the mask if enable will push the cursor to the right if it ever has to choose between right and left
+/// 4. We remove things in this order -> (1) currencyIdentifier (2) Mask (2) Leading 0s -> and add them in the inverse order
+/// 5. We ony need to report the new double value IF it doesn't match our previous one
 
 /// NOTE: voice typing has not been tested
 
@@ -47,14 +49,31 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
   String separator;
   bool maskWithSpacers;
   String spacer;
+  bool allowLeading0s;
+  String currencyIdentifier;
+  bool currencyIdentifierOnLeft; /// FALSE is on right
 
   //USD format is default
-  CurrencyTextInputFormatter(Function runAfterComplete, {int precision: 2, String separator: '.', bool maskWithSpacers: true, String spacer: ','}) {
+  CurrencyTextInputFormatter(
+      Function runAfterComplete,
+      {
+        /// NOTE: this is USD format
+        int precision: 2,
+        String separator: '.',
+        bool maskWithSpacers: true,
+        String spacer: ',',
+        bool allowLeading0s: false,
+        String currencyIdentifier: '\$ ',
+        bool currencyIdentifierOnLeft: true,
+      }) {
     this.runAfterComplete = runAfterComplete;
     this.precision = precision;
     this.separator = separator;
     this.maskWithSpacers = maskWithSpacers;
     this.spacer = spacer;
+    this.allowLeading0s = allowLeading0s;
+    this.currencyIdentifier = currencyIdentifier;
+    this.currencyIdentifierOnLeft = currencyIdentifierOnLeft;
   }
 
   /// NOTE: string length is NOT something that can be used to optimize
@@ -70,7 +89,13 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
 
     print("");
-    printDebug("RAN", oldValue, newValue);
+
+    printDebug("BEFORE IDENTIFIER REMOVAL", oldValue, newValue);
+
+    //save our originals
+    //TODO... we might not end up needing these, delete them when desired
+    TextEditingValue originalOldValue = oldValue;
+    TextEditingValue originalNewValue = newValue;
 
     if(newValue.text != oldValue.text){ /// NOTE this also includes changes to just our mask (by removing or replacing a spacer)
 
@@ -78,7 +103,13 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
       oldValue = correctTextEditingValueOffsets(oldValue);
       newValue = correctTextEditingValueOffsets(newValue);
 
-      printDebug("BEFORE MASK REMOVE", oldValue, newValue);
+      printDebug("AFTER INDEX CORRECTION - BEFORE IDENTIFIER REMOVAL", oldValue, newValue);
+
+      //remove identifiers (if will only not do so if your identifier is nothing)
+      oldValue = removeIdentifier(oldValue, currencyIdentifier, currencyIdentifierOnLeft);
+      newValue = removeIdentifier(newValue, currencyIdentifier, currencyIdentifierOnLeft);
+
+      printDebug("AFTER IDENTIFIER REMOVAL - BEFORE MASK REMOVAL", oldValue, newValue);
 
       //handle masking (assumes that if this is off the string doesn't have a mask)
       if(maskWithSpacers){ //NOTE: its important that both of these are masked so that we can get an accurate character count
@@ -86,13 +117,15 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         newValue = removeSpacers(newValue, spacer);
       }
 
-      printDebug("AFTER MASK REMOVE - BEFORE LEADING 0s REMOVED", oldValue, newValue);
+      printDebug("AFTER MASK REMOVAL - BEFORE LEADING 0s REMOVAL", oldValue, newValue);
 
       //remove leading 0s
-      oldValue = removeLeading0s(oldValue); 
-      newValue = removeLeading0s(newValue); //TODO... this shouldn't serve a purpose when complete... you can remove it
+      if(allowLeading0s == false){
+        oldValue = removeLeading0s(oldValue);
+        newValue = removeLeading0s(newValue); //TODO... this shouldn't serve a purpose when complete... you can remove it
+      }
 
-      printDebug("AFTER LEADING 0s REMOVED", oldValue, newValue);
+      printDebug("AFTER LEADING 0s REMOVED - BEFORE ERROR CORRECTION", oldValue, newValue);
 
       /// -------------------------MAIN ERROR CORRECTION BELOW-------------------------
 
@@ -146,10 +179,14 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
       /// -------------------------MAIN ERROR CORRECTION ABOVE-------------------------
 
-      printDebug("BEFORE MASK ADD", oldValue, newValue);
+      printDebug("AFTER ERROR CORRECTION - BEFORE VALUE CONFIRM", oldValue, newValue);
 
       //run passed function that saves our currency as a double
-      runAfterComplete(convertToDouble((newValue.text)));
+      double oldDouble = convertToDouble(oldValue.text);
+      double newDouble = convertToDouble(newValue.text);
+      if(oldDouble != newDouble) runAfterComplete(newDouble);
+
+      printDebug("AFTER VALUE CONFIRM - BEFORE MASK ADD", oldValue, newValue);
 
       //handle masking
       if(maskWithSpacers){
@@ -157,7 +194,14 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         newValue = addSpacers(newValue, separator, spacer);
       }
 
-      printDebug("END", oldValue, newValue);
+      printDebug("AFTER MASK ADD - BEFORE CURRENCY IDENTIFIER ADD", oldValue, newValue);
+
+      //add identifiers (if will only not do so if your identifier is nothing)
+      oldValue = addIdentifier(oldValue, currencyIdentifier, currencyIdentifierOnLeft);
+      newValue = addIdentifier(newValue, currencyIdentifier, currencyIdentifierOnLeft);
+
+      printDebug("AFTER CURRENCY IDENTIFIER ADD", oldValue, newValue);
+
       print("");
 
       //return our processed string
@@ -272,14 +316,98 @@ int selectionCorrection(int oldBaseOffset, int countOfNewCharsThatPassedFilters)
 
 /// -------------------------EVERYTHING BELOW HAS BEEN CHECKED-------------------------
 
-/// NOTE: assumes the string has AT MOST one separator
+/// NOTE: returns -1 if your string has more than 1 separator
 double convertToDouble(String str){
-  String strWithPeriodSeparator = "";
+  String strWithPeriodSeparator = ""; //set it to something not null so we can add to it
+
+  //loop through the number and assume anything that isn't a number is a separator
   for(int i=0; i<str.length; i++){
     if(48 <= str.codeUnitAt(i) && str.codeUnitAt(i) <= 57) strWithPeriodSeparator = strWithPeriodSeparator + str[i];
     else strWithPeriodSeparator = strWithPeriodSeparator + "."; //replace the separator for a period for easy parsing as a double
   }
-  return (strWithPeriodSeparator == '.') ? 0 : double.parse(strWithPeriodSeparator);
+
+  if(strWithPeriodSeparator.indexOf('.') == -1){
+    if(strWithPeriodSeparator == "") return 0; //we have no value
+    else return double.parse(strWithPeriodSeparator); //no separator exists so its already in parsable
+  }
+  else{
+    if(strWithPeriodSeparator == '.') return 0; //we have no value
+    else{
+      if(strWithPeriodSeparator.indexOf('.') != str.lastIndexOf('.')) return -1; //we have more than 1 separator and this is illegal
+      else return double.parse(strWithPeriodSeparator);
+    }
+  }
+}
+
+//---------------MASK helpers
+
+TextEditingValue removeIdentifier(TextEditingValue value, String currencyIdentifier, bool currencyIdentifierOnLeft){
+  if(currencyIdentifier == '' || currencyIdentifier == null) return value;
+  else{ /// NOTE: although they shouldn't the user might try to mess with the identifier so we have to plan for that
+    if(value.text.contains(currencyIdentifier) == false) return value;
+    else{
+      //prepare variables
+      String text = value.text;
+      int baseOffset = value.selection.baseOffset;
+      int extentOffset = value.selection.extentOffset;
+
+      //remove the currency identifier as desired
+      int lastIndexToRemove = text.indexOf(currencyIdentifier);
+      int firstIndexToRemove = lastIndexToRemove + currencyIdentifier.length - 1; //we are guaranteed this is not out of bounds
+
+      /// NOTE: we only remove the identifier from where it should be (otherwise it will be considered a user error and removed elsewhere)
+      bool identifierOnLeft = (currencyIdentifierOnLeft == true) && (lastIndexToRemove == 0);
+      bool identifierOnRight = (currencyIdentifierOnLeft == false) && (firstIndexToRemove == text.length - 1);
+      if(identifierOnLeft || identifierOnRight){
+        for(int index = text.length - 1; index >= 0; index--) {
+          if(lastIndexToRemove <= index && index <= firstIndexToRemove){
+            text = removeCharAtIndex(text, index);
+
+            //shift the offset the left
+            if(index < baseOffset) baseOffset--;
+            if(index < extentOffset) extentOffset--;
+          }
+        }
+
+        //return the corrected values
+        return correctTextEditingValueOffsets(
+            TextEditingValue(
+              text: text,
+              selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
+            )
+        );
+      }
+      else return value;
+    }
+  }
+}
+
+/// ASSUMES that we already know the user wants an identifier
+TextEditingValue addIdentifier(TextEditingValue value, String currencyIdentifier, bool currencyIdentifierOnLeft){
+  if(currencyIdentifier == '') return value;
+  else{
+    //prepare variables
+    String text = value.text;
+    int baseOffset = value.selection.baseOffset;
+    int extentOffset = value.selection.extentOffset;
+
+    //add identifier on the correct side
+    if(currencyIdentifierOnLeft){
+      text = currencyIdentifier + text;
+      //shift both offsets to the right by the length of the currency identifier
+      baseOffset += currencyIdentifier.length;
+      extentOffset += currencyIdentifier.length;
+    }
+    else text = text + currencyIdentifier; //requires no shift of cursors
+
+    //return the corrected values
+    return correctTextEditingValueOffsets(
+        TextEditingValue(
+          text: text,
+          selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
+        )
+    );
+  }
 }
 
 //---------------MASK helpers
@@ -411,19 +539,35 @@ List correctOverlappingOffsets(int baseOffset, int extentOffset){
 //---------------OTHER helpers
 
 TextEditingValue removeLeading0s(TextEditingValue value){
+  if(value.text.length == 0) return value;
+  else{
+    //prepare variables
+    String text = value.text;
+    int baseOffset = value.selection.baseOffset;
+    int extentOffset = value.selection.extentOffset;
 
-  //TODO... remove leading 0s
+    //remove all leading 0s
+    while(text.length != 0 && text[0] == '0'){
+      //remove the zero
+      text = removeCharAtIndex(text, 0);
 
-  correctTextEditingValueOffsets(
-      TextEditingValue(
-        text: value.text,
-        selection: TextSelection(baseOffset: value.selection.baseOffset, extentOffset: value.selection.extentOffset),
-      )
-  );
+      //adjust the cursor properly
+      if(0 < baseOffset) baseOffset--; //shift left
+      if(0 < extentOffset) extentOffset--; //shift left
+    }
+
+    return correctTextEditingValueOffsets(
+        TextEditingValue(
+          text: text,
+          selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
+        )
+    );
+  }
 }
 
 String removeCharAtIndex(String str, int index){
-  return str.substring(0, index) + str.substring(index + 1);
+  String firstHalf = (0 == index) ? "" : str.substring(0, index);
+  return firstHalf + str.substring(index + 1);
 }
 
 int addedCharacterCount(TextEditingValue oldValue, String newValue){

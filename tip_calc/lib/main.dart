@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_range_slider/flutter_range_slider.dart';
 
 import 'package:tip_calc/currencyFormatter.dart';
 
@@ -31,20 +31,141 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
-  double amount = 0;
-  TextEditingController controller = new TextEditingController();
+  TextEditingController totalController = new TextEditingController();
+  TextEditingController billController = new TextEditingController();
+  TextEditingController tipController = new TextEditingController();
 
-  void updateAmount(double newAmount){
+  Color gradientTop = const Color.fromARGB(255, 255, 203, 174);
+  Color gradientBottom = const Color.fromARGB(255, 255, 128, 148); //const Color.fromARGB(255, 205, 139, 149);
+  Color textGrey = const Color.fromARGB(255, 205, 205, 205);
+  static Color textPeach = const Color.fromARGB(255, 255, 147, 160);
+
+  TextStyle textMediumPeach = TextStyle(
+    color: textPeach,
+    fontWeight: FontWeight.bold,
+    fontSize: 24.0,
+  );
+
+  TextStyle textLargePeach = new TextStyle(
+    color: textPeach,
+    fontWeight: FontWeight.bold,
+    fontSize: 48.0,
+  );
+
+  String totalString;
+  String billString;
+  String tipPercentString;
+
+  double totalAmount = 0;
+  double billAmount = 0;
+  double tipPercent = 0; //1% is 1.0
+
+  void updateTotal(double totalAmount){
+    //update programmatically (bill gets no update)
+    this.totalAmount = totalAmount; //REQUIRED
+    double tipAmount = totalAmount - billAmount;
+    if(tipAmount == 0) tipPercent = 0;
+    else tipPercent = (tipAmount / billAmount) * 100;
+
+    //update variables
+    updateStrings();
+
+    //actually trigger changes in the form
+    tipController.text = tipPercentString;
+    print("UPDATING TOTAL--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
+  }
+
+  void updateBill(double billAmount){
+
+    //update programmatically (percent gets no update)
+    this.billAmount = billAmount; //REQUIRED
+    double tipAmount = billAmount * tipPercent * .01;
+    this.totalAmount = billAmount + tipAmount;
+
+    //update variables
+    updateStrings();
+
+    //actually trigger changes in the form
+    totalController.text = totalString;
+    print("UPDATING BILL--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
+
+    //as an added bonus this update our standard rates
     setState(() {
-      amount = newAmount;
+
     });
   }
 
-  Widget standardRow(var str, double num, {bool rightPercent = false}){
+  void updateTipPercent(double tipPercent){
+    //update programmatically (bill gets no update)
+    this.tipPercent = tipPercent; //REQUIRED
+    double tipAmount = billAmount * tipPercent * .01;
+    this.totalAmount = billAmount + tipAmount;
 
+    //update variables
+    updateStrings();
+
+    //actually trigger changes in the form
+    totalController.text = totalString;
+    print("UPDATING TIP PERCENT--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
+  }
+
+  void updateStrings(){
+    billString = stringDecoration(billAmount, showSpacers: true, currencyIdentifier: '\$ ');
+    tipPercentString = stringDecoration(tipPercent, showSpacers: true, currencyIdentifier: ' %', currencyIdentifierOnLeft: false);
+    totalString = stringDecoration(totalAmount, showSpacers: true, currencyIdentifier: '\$ ');
+  }
+
+  String stringDecoration(double num, {
+    bool rightPercent: false,
+    bool showSpacers: false,
+    String separator: '.',
+    String spacer: ',',
+    String currencyIdentifier: '',
+    bool currencyIdentifierOnLeft: true,
+  }){
     String numString = removeExtraValuesAfterSeparator(num.toString(), (rightPercent) ? 0 : 2);
     numString = currencyMask(numString, '.', ',');
     numString = ensureValuesAfterSeparator(numString, '.', (rightPercent) ? 0 : 2);
+
+    if(showSpacers || currencyIdentifier != ''){
+      TextEditingValue value = new TextEditingValue(text: numString);
+      if(showSpacers) value = addSpacers(value, separator, spacer);
+      if(currencyIdentifierOnLeft) value = addIdentifier(value, currencyIdentifier, currencyIdentifierOnLeft);
+      numString = value.text;
+    }
+
+    return numString;
+  }
+
+  /*
+  String amountToString(double amount, bool percent){
+    String numString = removeExtraValuesAfterSeparator(amount.toString(), 2);
+    numString = currencyMask(numString, '.', ',');
+    /// NOTE: line below displays everything nicer but it also causes an infinite loop
+    /// we could repair this by making the field a text box when we click it and ONLY when we click it
+    //numString = ensureValuesAfterSeparator(numString, '.', 2);
+    return numString;
+  }
+
+
+  void visualUpdate(){
+    //update variables
+    billString = amountToString(billAmount, false);
+    tipPercentString = amountToString(tipPercent, true);
+    totalString = amountToString(totalAmount, false);
+
+    //actually trigger changes in the form
+    billController.text = billString;
+    tipController.text = tipPercentString;
+    totalController.text = totalString;
+
+    print(billString + " percent " + tipPercentString + " = " + totalString);
+  }
+  */
+
+  Widget standardRow(var str, double num, {bool rightPercent = false}){
+
+    String numString = stringDecoration(num, rightPercent: rightPercent);
 
     double fontSize = 18.0;
     return new Row(
@@ -91,9 +212,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget suggestionsWidget({bool scrollable: false}){
     var widgets = [
-      defaultForm(amount, 10, Colors.cyan[700]),
-      defaultForm(amount, 15, Colors.cyan[500]),
-      defaultForm(amount, 20, Colors.cyan[300])
+      defaultForm(billAmount, 10, Colors.cyan[700]),
+      defaultForm(billAmount, 15, Colors.cyan[500]),
+      defaultForm(billAmount, 20, Colors.cyan[300])
     ];
     return new Container(
       padding: EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0),
@@ -102,74 +223,194 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  //NOTE: use this if you want to use a pop up instead
-  void _showDialog() {
-    // flutter defined function
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        // return object of type Dialog
-        return AlertDialog(
-          contentPadding: EdgeInsets.all(0.0),
-          content: suggestionsWidget(scrollable: true),
-          actions: <Widget>[
-            // usually buttons at the bottom of the dialog
-            new FlatButton(
-              child: new Text("Close"),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: ListView(
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            child: new Column (
-              children: <Widget>[
-                new Container(
-                  child: Form(
-                    child: TextFormField(
-                      autofocus: true,
-                      autocorrect: false,
-                      keyboardType: TextInputType.number,
-                      controller: controller,
-                      decoration: InputDecoration(
-                        prefixText: '\$ ',
-                        labelText: "Amount Due",
-                        helperText: "Type Amount Due",
-                        suffix: new GestureDetector(
-                          onTap: (){
-                            controller.clear();
-                            updateAmount(0);
-                          },
-                          child: new Icon(Icons.close),
-                        ),
-                        //hintText: "Type Amount Due in USD",
-                        //errorText: "error",
-                      ),
-                      inputFormatters: [
-                        new CurrencyTextInputFormatter(updateAmount),
-                      ],
-                    ),
+      body: Container(
+        padding: EdgeInsets.all(16.0),
+        decoration: new BoxDecoration(
+          gradient: LinearGradient(
+            colors: [gradientTop, gradientBottom],
+            begin: FractionalOffset.topCenter,
+            end: FractionalOffset.bottomCenter,
+            stops: [0.0,1.0],
+            tileMode: TileMode.clamp,
+          ),
+        ),
+        child: ListView(
+          children: <Widget>[
+            new Container(
+              padding: EdgeInsets.only(top: 8.0),
+              alignment: Alignment.center,
+              child: Text(
+                widget.title,
+                style: TextStyle(
+                  fontSize: 32.0,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            new Container(
+              padding: EdgeInsets.only(bottom: 16.0),
+              alignment: Alignment.center,
+              child: Container(
+                decoration: new BoxDecoration(
+                  color: textPeach,
+                  borderRadius: new BorderRadius.all(const Radius.circular(5.0),
                   ),
                 ),
-                suggestionsWidget()
-              ],
+                width: 90,
+                height: 4,
+              ),
             ),
-          ),
-        ],
+            new Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: new Column(
+                  children: <Widget>[
+                    new Container(
+                      padding: EdgeInsets.only(top: 8.0),
+                      alignment: Alignment.center,
+                      child: new Column(
+                        children: <Widget>[
+                          new Container(
+                            child: new Text(
+                              "TOTAL",
+                              style: new TextStyle(
+                                color: textGrey,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18.0,
+                              ),
+                            ),
+                          ),
+                          new Container(
+                            child: TextFormField(
+                              controller: totalController,
+                              textAlign: TextAlign.center,
+                              autocorrect: false,
+                              keyboardType: TextInputType.number,
+                              style: textLargePeach,
+                              decoration: InputDecoration(
+                                contentPadding: EdgeInsets.all(0.0),
+                                border: InputBorder.none,
+                                hintStyle: textLargePeach,
+                                hintText: "\$ 0.00",
+                              ),
+                              inputFormatters: [
+                                new CurrencyTextInputFormatter(updateTotal),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    ),
+                    Container(
+                      padding: EdgeInsets.all(8.0),
+                      alignment: Alignment.center,
+                      child: new Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: <Widget>[
+                          Expanded(
+                            child: new Container(
+                              child: new Column(
+                                children: <Widget>[
+                                  new Text(
+                                    "Bill",
+                                    style: TextStyle(
+                                      color: textGrey,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16.0,
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.only(bottom: 8.0),
+                                    child: TextFormField(
+                                      controller: billController,
+                                      textAlign: TextAlign.center,
+                                      autocorrect: false,
+                                      keyboardType: TextInputType.number,
+                                      style: textMediumPeach,
+                                      decoration: InputDecoration(
+                                        contentPadding: EdgeInsets.all(0.0),
+                                        border: InputBorder.none,
+                                        hintStyle: textMediumPeach,
+                                        hintText: "\$ 0.00",
+                                      ),
+                                      inputFormatters: [
+                                        new CurrencyTextInputFormatter(updateBill),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: new Container(
+                              child: new Column(
+                                children: <Widget>[
+                                  new Text(
+                                    "Tip",
+                                    style: TextStyle(
+                                      color: textGrey,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16.0,
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.only(bottom: 8.0),
+                                    child: TextFormField(
+                                      controller: tipController,
+                                      textAlign: TextAlign.center,
+                                      autocorrect: false,
+                                      keyboardType: TextInputType.number,
+                                      style: textMediumPeach,
+                                      decoration: InputDecoration(
+                                        contentPadding: EdgeInsets.all(0.0),
+                                        border: InputBorder.none,
+                                        hintStyle: textMediumPeach,
+                                        hintText: "0.00 %",
+                                        suffixStyle: textMediumPeach,
+                                      ),
+                                      inputFormatters: [
+                                        new CurrencyTextInputFormatter(
+                                          updateTipPercent,
+                                          currencyIdentifier: ' %',
+                                          currencyIdentifierOnLeft: false,
+                                          maskWithSpacers: false,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Card(
+              child: Container(
+
+              ),
+            ),
+            Card(
+              child: Container(
+                padding: const EdgeInsets.all(16.0),
+                child: new Column (
+                  children: <Widget>[
+                    suggestionsWidget()
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
