@@ -123,40 +123,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   String stringDecoration(double number, {String currencyIdentifier: '', bool currencyIdentifierOnLeft: true}){
     String numberString = number.toString();
-    numberString = ensureMinDigitsAfterDecimal(numberString, '.', 2); //NOTE: this doesn't defines max ONLY a min
+    numberString = ensureMinDigitsAfterSeparatorString(numberString, '.', 2); //NOTE: this doesn't defines max ONLY a min
     numberString = addCurrencyMask(numberString, '.', ','); //NOTE: I choose to also add this to percent, in case you want to tip 1,000 percent for some reason
     numberString = addCurrencyIdentifier(numberString, currencyIdentifier, currencyIdentifierOnLeft);
 
     return numberString;
-  }
-
-  /// NOTE: assumes the string has AT MOST one separator
-  String ensureMinDigitsAfterDecimal(String str, String separator, int minDigitsAfterDecimal, {bool removeLoneSeparator: true}){
-    if(minDigitsAfterDecimal < 0) return str; //there is no such thing, If I could use an unsigned int here I would
-    else{
-      //grab the index of the separator
-      int separatorIndex = str.indexOf(separator);
-
-      if(minDigitsAfterDecimal == 0){
-        if(separatorIndex == -1) return str;
-        else return str.substring(0, separatorIndex + ((removeLoneSeparator) ? 0 : 1));
-      }
-      else{
-        //add the separator if you don't already have it
-        if(separatorIndex == -1){
-          str = str + separator;
-          separatorIndex = str.indexOf(separator);
-        }
-
-        //add whatever the quantity of characters that you need to to meet the precision requirement
-        int desiredLastIndex = separatorIndex + minDigitsAfterDecimal;
-        int additionsNeeded = desiredLastIndex - (str.length - 1);
-        for(int i = additionsNeeded; i > 0; i--) str = str + '0';
-
-        //return the string with the new number of 0s at the end
-        return str;
-      }
-    }
   }
 
   /// --------------------------------------------------OVERRIDES--------------------------------------------------

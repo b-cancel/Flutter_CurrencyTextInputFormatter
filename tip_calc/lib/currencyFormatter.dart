@@ -40,10 +40,14 @@ import 'package:flutter/services.dart';
 ///   - this exists just in case but I thoroughly tested the code
 /// 3. I didn't try to enforce any minimum values because this doesn't make sense since the field will start off initially as empty
 
-//TODO... plan for all these currency codes https://en.wikipedia.org/wiki/ISO_4217
-//TODO... test a precision of 0 that should not allow anything after the decimal place (and not allow a decimal either)
-//TODO... we might want to avoid making any corrections if the string is ESSENTIALLY the same as the previous...
-//  - EX: old: 12.34... new is 12.345... OR new is 12.340000
+/// FUTURE PLANS:
+/// 1. function with all these currency codes https://en.wikipedia.org/wiki/ISO_4217
+///   - automatically set the variables depending on the selected code
+/// 2. avoid making any corrections if the string is ESSENTIALLY the same as the previous
+///   - EX: old: 12.34... new is 12.345... OR new is 12.340000
+
+//TODO... make it possible to add something to the left OR the right
+//  - this will make it possible to center align on the number instead of the number and the currency code together (among other things)
 
 class CurrencyTextInputFormatter extends TextInputFormatter {
 
@@ -176,14 +180,14 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
       // (3) ensure limits before decimal
       if(enforceMaxDigitsBefore){
-        newValue = ensureMaxDigitsBeforeDecimal(newValue, maxDigitsBeforeDecimal);
+        newValue = ensureMaxDigitsBeforeSeparator(newValue, separator, maxDigitsBeforeDecimal);
 
         printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue);
       }
 
       // (4) ensure limits after decimal
       if(enforceMaxDigitsAfter){
-        newValue = ensureMaxDigitsAfterDecimal(newValue, maxDigitsAfterDecimal);
+        newValue = ensureMaxDigitsAfterSeparator(newValue, separator, maxDigitsAfterDecimal);
 
         printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue);
       }
@@ -342,7 +346,12 @@ int selectionCorrection(int oldBaseOffset, int countOfNewCharsThatPassedFilters)
 */
 
 /// --------------------------------------------------PREFERENCE LIMIT FUNCTIONS--------------------------------------------------
-/// NOTE: all of these expect a string that CAN BE parsable as a double
+/// NOTE: all of these expect a string that CAN BE parsable as a double (they MIGHT have leading 0s)
+/// which also means they assume the string has AT MOST one separator
+
+String removeLeading0sString(String text){
+  return removeLeading0s(new TextEditingValue(text: text)).text;
+}
 
 TextEditingValue removeLeading0s(TextEditingValue value){
   if(value.text.length == 0) return value;
@@ -366,12 +375,90 @@ TextEditingValue removeLeading0s(TextEditingValue value){
   }
 }
 
-TextEditingValue ensureMaxDigitsBeforeDecimal(TextEditingValue value, int maxDigitsBeforeDecimal){
-  return value;
+String ensureMaxDigitsBeforeSeparatorString(String text, String separator, int maxDigitsBeforeDecimal){
+  return ensureMaxDigitsBeforeSeparator(new TextEditingValue(text: text), separator, maxDigitsBeforeDecimal).text;
 }
 
-TextEditingValue ensureMaxDigitsAfterDecimal(TextEditingValue value, int maxDigitsAfterDecimal){
-  return value;
+TextEditingValue ensureMaxDigitsBeforeSeparator(TextEditingValue value, String separator, int maxDigitsBeforeSeparator){
+  return ensureMaxDigits(value, separator, maxDigitsBeforeSeparator, removeBeforeSeparator: true);
+}
+
+String ensureMaxDigitsAfterSeparatorString(String text, String separator, int maxDigitsAfterDecimal){
+  return ensureMaxDigitsAfterSeparator(new TextEditingValue(text: text), separator, maxDigitsAfterDecimal).text;
+}
+
+TextEditingValue ensureMaxDigitsAfterSeparator(TextEditingValue value, String separator, int maxDigitsAfterSeparator){
+  return ensureMaxDigits(value, separator, maxDigitsAfterSeparator, removeBeforeSeparator: false);
+}
+
+TextEditingValue ensureMaxDigits(TextEditingValue value, String separator, int maxDigits, {bool removeBeforeSeparator}){
+  //prepare out variables
+  String text = value.text;
+  int baseOffset = value.selection.baseOffset;
+  int extentOffset = value.selection.extentOffset;
+
+  //grab the string that we care about
+  String stringSectionWeCareAbout;
+  int separatorIndex = text.indexOf(separator);
+  if(separatorIndex == -1) stringSectionWeCareAbout =  (removeBeforeSeparator) ? text : "";
+  else{
+    if(removeBeforeSeparator) stringSectionWeCareAbout = text.substring(0, separatorIndex); //doesn't include separator
+    else{
+      int afterSeparatorIndex = separatorIndex + 1;
+      stringSectionWeCareAbout = (afterSeparatorIndex < text.length) ? text.substring(afterSeparatorIndex, text.length) : "";
+    }
+  }
+
+  //operate on strings
+  int removalsRequired = stringSectionWeCareAbout.length - maxDigits;
+  if(removalsRequired > 0){
+    //remove the undesired values
+    while(removalsRequired > 0){
+      //remove the char from the right place
+      int indexToRemove = (removeBeforeSeparator) ? 0 : text.length - 1; //remove from the front or the back
+      text = removeCharAtIndex(text, indexToRemove);
+
+      //adjust the cursor properly
+      if(indexToRemove < baseOffset) baseOffset--; //shift left
+      if(indexToRemove < extentOffset) extentOffset--; //shift left
+
+      //inform changes
+      removalsRequired--;
+    }
+
+    //return the corrected values
+    return correctTextEditingValueOffsets(newTEV(text, baseOffset, extentOffset));
+  }
+  else return value;
+}
+
+/// NOTE: assumes the string has AT MOST one separator
+String ensureMinDigitsAfterSeparatorString(String str, String separator, int minDigitsAfterDecimal, {bool removeLoneSeparator: true}){
+  if(minDigitsAfterDecimal < 0) return str; //there is no such thing, If I could use an unsigned int here I would
+  else{
+    //grab the index of the separator
+    int separatorIndex = str.indexOf(separator);
+
+    if(minDigitsAfterDecimal == 0){
+      if(separatorIndex == -1) return str;
+      else return str.substring(0, separatorIndex + ((removeLoneSeparator) ? 0 : 1));
+    }
+    else{
+      //add the separator if you don't already have it
+      if(separatorIndex == -1){
+        str = str + separator;
+        separatorIndex = str.indexOf(separator);
+      }
+
+      //add whatever the quantity of characters that you need to to meet the precision requirement
+      int desiredLastIndex = separatorIndex + minDigitsAfterDecimal;
+      int additionsNeeded = desiredLastIndex - (str.length - 1);
+      for(int i = additionsNeeded; i > 0; i--) str = str + '0';
+
+      //return the string with the new number of 0s at the end
+      return str;
+    }
+  }
 }
 
 /// --------------------------------------------------VALUE REPORTING FUNCTION--------------------------------------------------
