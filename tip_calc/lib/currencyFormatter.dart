@@ -43,47 +43,70 @@ import 'package:flutter/services.dart';
 //TODO... plan for all these currency codes https://en.wikipedia.org/wiki/ISO_4217
 
 //TODO... test a precision of 0 that should not allow anything after the decimal place (and not allow a decimal either)
-//TODO... instead of a precision value have 2 variables... "maxDigitsBeforeDecimal" and "maxDigitsAfterDecimal" (both of these should be unsigned ints)
-//TODO... both of above should have accompanying variables "enforceMaxDigitsBeforeDecimal" and "enforceMaxDigitsAfterDecimal"
 
 class CurrencyTextInputFormatter extends TextInputFormatter {
 
   /// --------------------------------------------------VARIABLE PREPARATION--------------------------------------------------
 
   void Function(double) runAfterComplete;
-  int precision;
+
+  bool enforceMaxDigitsBefore;
+  int maxDigitsBeforeDecimal;
+
+  bool enforceMaxDigitsAfter;
+  int maxDigitsAfterDecimal;
 
   String separator;
 
-  bool maskWithSpacers;
+  bool addMaskWithSpacers;
   String spacer;
 
-  bool allowLeading0s;
-
+  bool addCurrencyIdentifier;
   String currencyIdentifier;
   bool currencyIdentifierOnLeft; /// FALSE is on right
+
+  bool allowLeading0s;
 
   //USD format is default
   CurrencyTextInputFormatter(
       Function runAfterComplete,
       {
         /// NOTE: this is USD format
-        int precision: 2,
+        bool enforceMaxDigitsBefore: false,
+        int maxDigitsBeforeDecimal: 0,
+
+        bool enforceMaxDigitsAfter: true,
+        int maxDigitsAfterDecimal: 2,
+
         String separator: '.',
+
         bool maskWithSpacers: true,
         String spacer: ',',
-        bool allowLeading0s: false,
+
+        bool addCurrencyIdentifier: true,
         String currencyIdentifier: '\$',
         bool currencyIdentifierOnLeft: true,
+
+        bool allowLeading0s: false,
       }) {
     this.runAfterComplete = runAfterComplete;
-    this.precision = precision;
+
+    this.enforceMaxDigitsBefore = enforceMaxDigitsBefore;
+    this.maxDigitsBeforeDecimal = maxDigitsBeforeDecimal;
+
+    this.enforceMaxDigitsAfter = enforceMaxDigitsAfter;
+    this.maxDigitsAfterDecimal = maxDigitsAfterDecimal;
+
     this.separator = separator;
-    this.maskWithSpacers = maskWithSpacers;
+
+    this.addMaskWithSpacers = maskWithSpacers;
     this.spacer = spacer;
-    this.allowLeading0s = allowLeading0s;
+
+    this.addCurrencyIdentifier = addCurrencyIdentifier;
     this.currencyIdentifier = currencyIdentifier;
     this.currencyIdentifierOnLeft = currencyIdentifierOnLeft;
+
+    this.allowLeading0s = allowLeading0s;
   }
 
   /// --------------------------------------------------MAIN FUNCTION--------------------------------------------------
@@ -100,14 +123,9 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
   // So. We need to plan for both scenarios to avoid bugs
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
 
-    print("");
+    if(debugMode) print("");
 
     printDebug("ORIGINAL VALUES", oldValue, newValue);
-
-    //save our originals
-    //TODO... we might not end up needing these, delete them when desired
-    TextEditingValue originalOldValue = oldValue;
-    TextEditingValue originalNewValue = newValue;
 
     if(newValue.text != oldValue.text){ /// NOTE this also includes changes to just our mask (by removing or replacing a spacer)
 
@@ -118,18 +136,22 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
       oldValue = correctTextEditingValueOffsets(oldValue);
       newValue = correctTextEditingValueOffsets(newValue);
 
-      printDebug("AFTER INDEX CORRECTION - BEFORE IDENTIFIER REMOVAL", oldValue, newValue);
+      printDebug("AFTER INDEX CORRECTION", oldValue, newValue);
 
-      //remove identifiers (if will only not do so if your identifier is nothing)
-      oldValue = removeIdentifier(oldValue, currencyIdentifier, currencyIdentifierOnLeft);
-      newValue = removeIdentifier(newValue, currencyIdentifier, currencyIdentifierOnLeft);
+      //remove identifiers
+      if(addCurrencyIdentifier){
+        oldValue = removeIdentifier(oldValue, currencyIdentifier, currencyIdentifierOnLeft);
+        newValue = removeIdentifier(newValue, currencyIdentifier, currencyIdentifierOnLeft);
 
-      printDebug("AFTER IDENTIFIER REMOVAL - BEFORE MASK REMOVAL", oldValue, newValue);
+        printDebug("AFTER IDENTIFIER REMOVAL", oldValue, newValue);
+      }
 
       //handle masking (assumes that if this is off the string doesn't have a mask)
-      if(maskWithSpacers){ //NOTE: its important that both of these are masked so that we can get an accurate character count
+      if(addMaskWithSpacers){ //NOTE: its important that both of these are masked so that we can get an accurate character count
         oldValue = removeSpacers(oldValue, spacer);
         newValue = removeSpacers(newValue, spacer);
+
+        printDebug("AFTER MASK REMOVAL", oldValue, newValue);
       }
 
       /// -------------------------MAIN ERROR CORRECTION BELOW-------------------------
@@ -158,35 +180,52 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
       /// -------------------------MAIN ERROR CORRECTION ABOVE-------------------------
 
-      printDebug("AFTER ERROR CORRECTION - BEFORE VALUE CONFIRM", oldValue, newValue);
+      printDebug("AFTER ERROR CORRECTION - [BOTH SHOULD BE PARASABLE AS DOUBLES]", oldValue, newValue);
 
       //run passed function that saves our currency as a double
       double oldDouble = convertToDouble(oldValue.text);
       double newDouble = convertToDouble(newValue.text);
       if(oldDouble != newDouble) runAfterComplete(newDouble);
 
-      printDebug("AFTER VALUE CONFIRM - BEFORE MASK ADD", oldValue, newValue);
-
       //handle masking
-      if(maskWithSpacers){
-        oldValue = addSpacers(oldValue, separator, spacer); //TODO... this is only for debugging
+      if(addMaskWithSpacers){
+        if(debugMode) oldValue = addSpacers(oldValue, separator, spacer); //TODO... this is only for debugging
         newValue = addSpacers(newValue, separator, spacer);
+
+        printDebug("AFTER MASK ADD", oldValue, newValue);
       }
 
-      printDebug("AFTER MASK ADD - BEFORE CURRENCY IDENTIFIER ADD", oldValue, newValue);
-
       //add identifiers (if will only not do so if your identifier is nothing)
-      oldValue = addIdentifier(oldValue, currencyIdentifier, currencyIdentifierOnLeft); //TODO... this is only for debugging
-      newValue = addIdentifier(newValue, currencyIdentifier, currencyIdentifierOnLeft);
+      if(addCurrencyIdentifier){
+        if(debugMode) oldValue = addIdentifier(oldValue, currencyIdentifier, currencyIdentifierOnLeft); //TODO... this is only for debugging
+        newValue = addIdentifier(newValue, currencyIdentifier, currencyIdentifierOnLeft);
 
-      printDebug("AFTER CURRENCY IDENTIFIER ADD", oldValue, newValue);
+        printDebug("AFTER CURRENCY IDENTIFIER ADD", oldValue, newValue);
+      }
 
-      //TODO... add truncation code that uses precision
+      if(enforceMaxDigitsBefore){
+        if(debugMode) oldValue = ensureMaxDigitsBeforeDecimal(oldValue, maxDigitsBeforeDecimal); //TODO... this is only for debugging
+        newValue = ensureMaxDigitsBeforeDecimal(newValue, maxDigitsBeforeDecimal);
 
-      print("");
+        printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue);
+      }
+
+      if(enforceMaxDigitsAfter){
+        if(debugMode) oldValue = ensureMaxDigitsAfterDecimal(oldValue, maxDigitsAfterDecimal); //TODO... this is only for debugging
+        newValue = ensureMaxDigitsAfterDecimal(newValue, maxDigitsAfterDecimal);
+
+        printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue);
+      }
+
+      oldValue = correctNewTextEditingValueOffsets(oldValue.text, oldValue.selection.baseOffset);
+      newValue = correctNewTextEditingValueOffsets(newValue.text, newValue.selection.baseOffset);
+
+      printDebug("FINAL VALUES", oldValue, newValue);
+
+      if(debugMode) print("");
 
       //return our processed string
-      return correctNewTextEditingValueOffsets(newValue.text, newValue.selection.baseOffset);
+      return newValue;
     }
     else return newValue; //nothing has changed and this ran when it should not have
     /// NOTE: the code above HAS to return newValue exactly otherwise we will indefinitely correct our value
@@ -194,6 +233,8 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 }
 
 /// --------------------------------------------------ERROR CORRECTING FILTERS--------------------------------------------------
+
+
 
 TextEditingValue removeLeading0s(TextEditingValue value){
   if(value.text.length == 0) return value;
@@ -327,6 +368,14 @@ int selectionCorrection(int oldBaseOffset, int countOfNewCharsThatPassedFilters)
   // in all cases, going to oldBaseOffset works
 }
 */
+
+TextEditingValue ensureMaxDigitsBeforeDecimal(TextEditingValue value, int maxDigitsBeforeDecimal){
+  return value;
+}
+
+TextEditingValue ensureMaxDigitsAfterDecimal(TextEditingValue value, int maxDigitsAfterDecimal){
+  return value;
+}
 
 /// --------------------------------------------------VALUE REPORTING FUNCTION--------------------------------------------------
 
