@@ -5,18 +5,13 @@ import 'package:flutter/services.dart';
 ///   2. try to += to a string set to null
 ///   3. double.parse parsing just a period
 
-/// NOTE: I found some FLUTTER BUGS (while using android) that made this asset a pain to make
-/// 1. I can select the text in the input field but I can't move the start tick, ONLY the end tick
+/// FLUTTER BUGS:
+/// 1. I can select the text in the input field but I can't move the start tick, ONLY the end tick (using android phone, NOT emulator)
 ///   - occurs even without input formatter
 ///   - BECAUSE of the above I wasn't able to fully test my solution although I did program it so that i should work in all cases
+///   - only occurs when your phone is plugged in and not when you are running the emulator and using the mouse to simulate touch
 /// 2. its possible for baseOffset AND OR extentOffset to be less than 0... which makes no sense
 ///   - I adjusted the values to avoid this
-/// 3. sometimes our oldValue on the TextInputFormatter does NOT reflect what is in the text field (it runs twice, updates visually with the 1st and in code with the 2nd)
-///   REPLICATE BY:
-///   a. type 10 numbers in the box
-///   b. place a separator between all the numbers
-///   c. note how the numbers are properly truncated
-///   d. note how any print statement of oldValue and newValue shows up if placed inside of formatEditUpdate
 
 /// FRAMEWORK NOTES:
 /// baseOffset holds the position where the selection begins
@@ -38,18 +33,28 @@ import 'package:flutter/services.dart';
 /// 4. We remove things in this order -> (1) currencyIdentifier (2) Mask (2) Leading 0s -> and add them in the inverse order
 /// 5. We ony need to report the new double value IF it doesn't match our previous one
 
-/// NOTE: voice typing has not been tested
+/// NOTE:
+/// 1. voice typing has not been tested
+/// 2. because there are so many different steps and its all string parsing which tend to have tons of edge cases
+///   - I created a [debugMode] variable that can be turned to true to see exactly how the string is bring processed and find the potential bug
+///   - this exists just in case but I thoroughly tested the code
 
 //TODO... plan for all these currency codes https://en.wikipedia.org/wiki/ISO_4217
 
 class CurrencyTextInputFormatter extends TextInputFormatter {
 
+  /// --------------------------------------------------VARIABLE PREPARATION--------------------------------------------------
+
   void Function(double) runAfterComplete;
-  int precision;
+  int precision; //TODO... test a precision of 0 that should not allow anything after the decimal place (and not allow a decimal either)
+
   String separator;
+
   bool maskWithSpacers;
   String spacer;
+
   bool allowLeading0s;
+
   String currencyIdentifier;
   bool currencyIdentifierOnLeft; /// FALSE is on right
 
@@ -63,7 +68,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         bool maskWithSpacers: true,
         String spacer: ',',
         bool allowLeading0s: false,
-        String currencyIdentifier: '\$ ',
+        String currencyIdentifier: '\$',
         bool currencyIdentifierOnLeft: true,
       }) {
     this.runAfterComplete = runAfterComplete;
@@ -75,6 +80,8 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
     this.currencyIdentifier = currencyIdentifier;
     this.currencyIdentifierOnLeft = currencyIdentifierOnLeft;
   }
+
+  /// --------------------------------------------------MAIN FUNCTION--------------------------------------------------
 
   /// NOTE: string length is NOT something that can be used to optimize
   /// IF oldValue.text.length == newValue.text.length => it doesn't imply anything
@@ -90,7 +97,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
     print("");
 
-    printDebug("BEFORE IDENTIFIER REMOVAL", oldValue, newValue);
+    printDebug("ORIGINAL VALUES", oldValue, newValue);
 
     //save our originals
     //TODO... we might not end up needing these, delete them when desired
@@ -98,6 +105,9 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
     TextEditingValue originalNewValue = newValue;
 
     if(newValue.text != oldValue.text){ /// NOTE this also includes changes to just our mask (by removing or replacing a spacer)
+
+      /// NOTE: we always mess with both the old and new value BECAUSE
+      /// we only want to update the value through the function IF our values are different and not if we just messed with a spacer or a currency identifier
 
       //save all the variables we need to use to determine how to proceed
       oldValue = correctTextEditingValueOffsets(oldValue);
@@ -117,65 +127,29 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         newValue = removeSpacers(newValue, spacer);
       }
 
-      printDebug("AFTER MASK REMOVAL - BEFORE LEADING 0s REMOVAL", oldValue, newValue);
-
-      //remove leading 0s
-      if(allowLeading0s == false){
-        oldValue = removeLeading0s(oldValue);
-        newValue = removeLeading0s(newValue); //TODO... this shouldn't serve a purpose when complete... you can remove it
-      }
-
-      printDebug("AFTER LEADING 0s REMOVED - BEFORE ERROR CORRECTION", oldValue, newValue);
-
       /// -------------------------MAIN ERROR CORRECTION BELOW-------------------------
+      /// NOTE: oldValue is assumed to already follow these rules
 
       /*
-      //an optimization we can make if we notice that we are ONLY removing characters
-      if(addedCharacterCount(oldValue, newValue.text) > 0){
-        print("WE MUST HAVE ADDED AND MAYBE REMOVED CHARACTERS");
-        print("*************************" + oldValue.text + " => " + newValue.text);
+      printDebug("AFTER MASK REMOVAL - BEFORE LEADING 0s REMOVAL", oldValue, newValue);
 
-        //-----Operate on OLD string AND new string (characters that where part of the mask, and newly added characters)
+      //remove leading 0s (NOTE: oldValue is assumed to already follow these rules)
+      if(allowLeading0s == false) newValue = removeLeading0s(newValue);
 
-        //TODO... inserting a period between alot of numbers makes the cursor go behind where it should (only when truncation is required)
-        //TODO... inserting a character after that period does the same (only when truncation is required)
+      printDebug("AFTER LEADING 0s REMOVED - BEFORE ALL EXCEPT NUMS AND SEPARATORS ARE REMOVED", oldValue, newValue);
 
-        print("0: " + newText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
-        // (0) remove everything except NUMBERS AND the SEPARATOR
-        /// NOTE: this would also remove the mask if we were using it
-        /// NOTE: we could use whitelisting but we used this since some bugs arose from using WhiteListing and another custom formatter and I was trying to avoid them
-        var result = removeAllButNumbersAndSeparator(newText, separator, oldBaseOffset, oldExtentOffset);
-        newText = result[0];
-        oldBaseOffset = result[1];
-        oldExtentOffset = result[2];
+      // remove everything except NUMBERS AND the SEPARATOR (NOTE: oldValue is assumed to already follow these rules
+      newValue = removeAllButNumbersAndSeparator(newValue, separator);
 
-        //-----Operate ONLY on new string (newly added characters) [so oldBaseOffset is NOT shifted]
+      printDebug("AFTER ALL EXCEPT NUMS AND SEPARATORS ARE REMOVED - BEFORE ALL BUT ONE SEPARAOR REMOVED", oldValue, newValue);
 
-        print("1: " + newText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
-        // (1) make sure that we allow at most one SEPARATOR
-        newText = removeAllButOneSeparator(newText, separator, oldBaseOffset, oldExtentOffset, addedCharacterCount(oldText, newText, oldBaseOffset, oldExtentOffset));
-        print("2: " + newText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
-        // (2) TRUNCATE the amount needed dependant on the currency format
-        newText = removeExtraValuesAfterSeparator(newText, precision, showSinglePeriod: true);
-        oldBaseOffset = (oldBaseOffset < newText.length) ? oldBaseOffset : newText.length; //must not be larger than length
-        print("3: " + newText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
-        // (3) Selection Correction
-        /// NOTE: added character count may no longer be accurate
-        oldBaseOffset = selectionCorrection(addedCharacterCount(oldText, newText, oldBaseOffset, oldExtentOffset), oldBaseOffset); //TODO... check
-        print("4: " + newText + " selection from " + oldBaseOffset.toString() + " to " + oldExtentOffset.toString());
-      }
-      else{ //we only removed characters (so we could have issues with the mask, IF it exists)
-        //-----Calculate how many characters we removed before we remove the mask
-        /// NOTE: we know that the old and new string are different AND that we didn't add anything new
-        /// So we KNOW that we must have at the very least removed something (it as well be the mask)
-        int numberOfCharsRemoved =  oldValue.text.length - newValue.text.length;
-
-        //-----Adjust the oldBaseOffset (again)
-        // oldBaseOffset would have already been shifted if removing the mask would have affected it
-        oldBaseOffset = oldBaseOffset - numberOfCharsRemoved;
-      }
-
+      // make sure that we allow at most one SEPARATOR
+      int addedCharCount = addedCharacterCount(oldValue, newValue.text);
+      print("characters Addded " + addedCharCount.toString());
+      //newValue = removeAllButOneSeparator(newValue.text, separator, oldValue.selection.baseOffset, oldValue.selection.extentOffset, addedCharCount);
       */
+
+      // truncate -> selection correction
 
       /// -------------------------MAIN ERROR CORRECTION ABOVE-------------------------
 
@@ -190,17 +164,19 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
       //handle masking
       if(maskWithSpacers){
-        oldValue = addSpacers(oldValue, separator, spacer); //TODO... this shouldn't serve a purpose when complete... you can remove it
+        oldValue = addSpacers(oldValue, separator, spacer); //TODO... this is only for debugging
         newValue = addSpacers(newValue, separator, spacer);
       }
 
       printDebug("AFTER MASK ADD - BEFORE CURRENCY IDENTIFIER ADD", oldValue, newValue);
 
       //add identifiers (if will only not do so if your identifier is nothing)
-      oldValue = addIdentifier(oldValue, currencyIdentifier, currencyIdentifierOnLeft);
+      oldValue = addIdentifier(oldValue, currencyIdentifier, currencyIdentifierOnLeft); //TODO... this is only for debugging
       newValue = addIdentifier(newValue, currencyIdentifier, currencyIdentifierOnLeft);
 
       printDebug("AFTER CURRENCY IDENTIFIER ADD", oldValue, newValue);
+
+      //TODO... add truncation code that uses precision
 
       print("");
 
@@ -212,33 +188,64 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
   }
 }
 
-//---------------MAIN helpers
+/// --------------------------------------------------ERROR CORRECTING FILTERS--------------------------------------------------
 
-List removeAllButNumbersAndSeparator(String str, String separator, int oldBaseOffset, int oldExtentOffset){
-  //NOTE: we deleted back to front so we don't have to constantly adjust the index on deletion
-  for(int i = str.length - 1; i >= 0; i--) {
-    if (((48 <= str.codeUnitAt(i) && str.codeUnitAt(i) <= 57) || str[i] == separator) == false){
-      //---remove whatever is at i
-      str = removeCharAtIndex(str, i);
+TextEditingValue removeLeading0s(TextEditingValue value){
+  if(value.text.length == 0) return value;
+  else{
+    //prepare variables
+    String text = value.text;
+    int baseOffset = value.selection.baseOffset;
+    int extentOffset = value.selection.extentOffset;
 
-      //---adjust the offset accordingly
-      if(i < oldBaseOffset) oldBaseOffset--;
-      if(i < oldExtentOffset) oldExtentOffset--;
+    //remove all leading 0s
+    while(text.length != 0 && text[0] == '0'){
+      //remove the zero
+      text = removeCharAtIndex(text, 0);
+
+      //adjust the cursor properly
+      if(0 < baseOffset) baseOffset--; //shift left
+      if(0 < extentOffset) extentOffset--; //shift left
     }
-  }
 
-  //return the modified string along with the modified offsets
-  return [
-    str,
-    (oldBaseOffset < 0) ? 0 : oldBaseOffset,
-    (oldExtentOffset > str.length) ? str.length : oldExtentOffset
-  ];
+    return correctTextEditingValueOffsets(newTEV(text, baseOffset, extentOffset));
+  }
 }
 
-String removeAllButOneSeparator(String str, String separator, int baseOffset, int extentOffset, int addedCharCount){
-  int firstIndexOfSeparator = str.indexOf(separator);
+TextEditingValue removeAllButNumbersAndSeparator(TextEditingValue value, String separator){
+  //prepare variables
+  String text = value.text;
+  int baseOffset = value.selection.baseOffset;
+  int extentOffset = value.selection.extentOffset;
+
+  if(text.length == 0) return value;
+  else{
+    //NOTE: we deleted back to front so we don't have to constantly adjust the index on deletion
+    for(int i = text.length - 1; i >= 0; i--) {
+      if (((48 <= text.codeUnitAt(i) && text.codeUnitAt(i) <= 57) || text[i] == separator) == false){
+        //---remove whatever is at i
+        text = removeCharAtIndex(text, i);
+
+        //---adjust the offset accordingly
+        if(i < baseOffset) baseOffset--;
+        if(i < extentOffset) extentOffset--;
+      }
+    }
+
+    //return the corrected values
+    return correctTextEditingValueOffsets(
+        TextEditingValue(
+          text: text,
+          selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
+        )
+    );
+  }
+}
+
+String removeAllButOneSeparator(String text, String separator, int baseOffset, int extentOffset, int addedCharCount){
+  int firstIndexOfSeparator = text.indexOf(separator);
   if(firstIndexOfSeparator != -1){ //at least 1 separator exists
-    if(firstIndexOfSeparator != str.lastIndexOf(separator)) { //at least 2 separators exist
+    if(firstIndexOfSeparator != text.lastIndexOf(separator)) { //at least 2 separators exist
       /// If you DID NOT have any separators before => Which one do you keep? => THE FIRST
       /// If you DID have 1 separator before => Which one do you keep? => THE OLD ONE
       ///   BUT => it isn't all ways possible to identify which is the older one with just oldValue and newValue
@@ -257,11 +264,11 @@ String removeAllButOneSeparator(String str, String separator, int baseOffset, in
       // in the worst case it will be 0, which covers the edge case of adding 2+ separators into an empty field
       // NOTE: for all the fields below (except insertion) its possible for each of them to be empty in different scenarios
       //  - because of the above we have to make an extra check otherwise substring will duplicate characters at the left end
-      String beforeInsertion = (0 == baseOffset) ? "" : str.substring(0, baseOffset);
+      String beforeInsertion = (0 == baseOffset) ? "" : text.substring(0, baseOffset);
       int lastAdditionIndex = baseOffset + addedCharCount;
       /// NOTE: this may seem like it requires (lastAdditionIndex + 1) but it doesn't
-      String insertion = str.substring(baseOffset, lastAdditionIndex); //NOTE: this will NEVER be empty
-      String afterInsertion = ((lastAdditionIndex) == str.length) ? "" : str.substring(lastAdditionIndex, str.length);
+      String insertion = text.substring(baseOffset, lastAdditionIndex); //NOTE: this will NEVER be empty
+      String afterInsertion = ((lastAdditionIndex) == text.length) ? "" : text.substring(lastAdditionIndex, text.length);
 
       //remove separators from the back OF THE INSERTION until only the FIRST one is left
       for(int index = insertion.length - 1; insertion.indexOf(separator) != insertion.lastIndexOf(separator); index--){
@@ -277,11 +284,12 @@ String removeAllButOneSeparator(String str, String separator, int baseOffset, in
 
       return (beforeInsertion + insertion + afterInsertion);
     }
-    else return str;
+    else return text;
   }
-  else return str;
+  else return text;
 }
 
+/*
 /// NOTE: assumes the string has AT MOST one separator
 /// assumes that you want to remove the separator if there are no values after it
 String removeExtraValuesAfterSeparator(String string, int valuesAfterSeparator, {bool showSinglePeriod = false}){
@@ -313,6 +321,7 @@ int selectionCorrection(int oldBaseOffset, int countOfNewCharsThatPassedFilters)
   // (4) or (2) AND (3) starting at oldBaseOffset
   // in all cases, going to oldBaseOffset works
 }
+*/
 
 /// -------------------------EVERYTHING BELOW HAS BEEN CHECKED-------------------------
 
@@ -339,47 +348,10 @@ double convertToDouble(String str){
   }
 }
 
-//---------------MASK helpers
+/// --------------------------------------------------CURRENCY IDENTIFIER FUNCTIONS--------------------------------------------------
 
-TextEditingValue removeIdentifier(TextEditingValue value, String currencyIdentifier, bool currencyIdentifierOnLeft){
-  if(currencyIdentifier == '' || currencyIdentifier == null) return value;
-  else{ /// NOTE: although they shouldn't the user might try to mess with the identifier so we have to plan for that
-    if(value.text.contains(currencyIdentifier) == false) return value;
-    else{
-      //prepare variables
-      String text = value.text;
-      int baseOffset = value.selection.baseOffset;
-      int extentOffset = value.selection.extentOffset;
-
-      //remove the currency identifier as desired
-      int lastIndexToRemove = text.indexOf(currencyIdentifier);
-      int firstIndexToRemove = lastIndexToRemove + currencyIdentifier.length - 1; //we are guaranteed this is not out of bounds
-
-      /// NOTE: we only remove the identifier from where it should be (otherwise it will be considered a user error and removed elsewhere)
-      bool identifierOnLeft = (currencyIdentifierOnLeft == true) && (lastIndexToRemove == 0);
-      bool identifierOnRight = (currencyIdentifierOnLeft == false) && (firstIndexToRemove == text.length - 1);
-      if(identifierOnLeft || identifierOnRight){
-        for(int index = text.length - 1; index >= 0; index--) {
-          if(lastIndexToRemove <= index && index <= firstIndexToRemove){
-            text = removeCharAtIndex(text, index);
-
-            //shift the offset the left
-            if(index < baseOffset) baseOffset--;
-            if(index < extentOffset) extentOffset--;
-          }
-        }
-
-        //return the corrected values
-        return correctTextEditingValueOffsets(
-            TextEditingValue(
-              text: text,
-              selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
-            )
-        );
-      }
-      else return value;
-    }
-  }
+String addCurrencyIdentifier(String text, String currencyIdentifier, bool currencyIdentifierOnLeft){
+  return addIdentifier(new TextEditingValue(text: text), currencyIdentifier, currencyIdentifierOnLeft).text;
 }
 
 /// ASSUMES that we already know the user wants an identifier
@@ -401,60 +373,92 @@ TextEditingValue addIdentifier(TextEditingValue value, String currencyIdentifier
     else text = text + currencyIdentifier; //requires no shift of cursors
 
     //return the corrected values
-    return correctTextEditingValueOffsets(
-        TextEditingValue(
-          text: text,
-          selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
-        )
-    );
+    return correctTextEditingValueOffsets(newTEV(text, baseOffset, extentOffset));
   }
 }
 
-//---------------MASK helpers
+TextEditingValue removeIdentifier(TextEditingValue value, String currencyIdentifier, bool currencyIdentifierOnLeft){
+  if(currencyIdentifier == '' || currencyIdentifier == null) return value;
+  else{ /// NOTE: although they shouldn't the user might try to mess with the identifier so we have to plan for that
+    if(value.text.contains(currencyIdentifier) == false) return value;
+    else{
+      if(value.text.length == 0) return value;
+      else{
+        //prepare variables
+        String text = value.text;
+        int baseOffset = value.selection.baseOffset;
+        int extentOffset = value.selection.extentOffset;
+
+        //remove the currency identifier as desired
+        int lastIndexToRemove = text.indexOf(currencyIdentifier); //last since we are reading the string from right to left
+        int firstIndexToRemove = lastIndexToRemove + currencyIdentifier.length - 1; //we are guaranteed this is not out of bounds
+
+        /// NOTE: we only remove the identifier from where it should be (otherwise it will be considered a user error and removed elsewhere)
+        bool identifierOnLeft = (currencyIdentifierOnLeft == true) && (lastIndexToRemove == 0);
+        bool identifierOnRight = (currencyIdentifierOnLeft == false) && (firstIndexToRemove == text.length - 1);
+        if(identifierOnLeft || identifierOnRight){
+          for(int index = text.length - 1; index >= 0; index--) {
+            if(lastIndexToRemove <= index && index <= firstIndexToRemove){
+              text = removeCharAtIndex(text, index);
+
+              //shift the offset the left
+              if(index < baseOffset) baseOffset--;
+              if(index < extentOffset) extentOffset--;
+            }
+          }
+
+          //return the corrected values
+          return correctTextEditingValueOffsets(newTEV(text, baseOffset, extentOffset));
+        }
+        else return value;
+      }
+    }
+  }
+}
+
+/// --------------------------------------------------CURRENCY MASK FUNCTIONS--------------------------------------------------
 
 /// NOTE: assume the string has AT MOST one separator
-String currencyMask(String value, String separator, String spacer){
+String addCurrencyMask(String value, String separator, String spacer){
   return addSpacers(TextEditingValue(text: value), separator, spacer).text;
 }
 
 /// NOTE: assumes the string has AT MOST one separator
 TextEditingValue addSpacers(TextEditingValue value, String separator, String spacer, {bool cursorToRightOfSpacer: true}){
-  //create references to our variables
-  String text = value.text;
-  int baseOffset = value.selection.baseOffset;
-  int extentOffset = value.selection.extentOffset;
+  if(value.text.length == 0) return value;
+  else{
+    //create references to our variables
+    String text = value.text;
+    int baseOffset = value.selection.baseOffset;
+    int extentOffset = value.selection.extentOffset;
 
-  //prepare some variables before the main loop
-  bool passedSeparator = (text.contains(separator)) ? false : true;
-  int numbersPassed = 0;
+    //prepare some variables before the main loop
+    bool passedSeparator = (text.contains(separator)) ? false : true;
+    int numbersPassed = 0;
 
-  //read the string from right to left to find the separator and then start adding spacer
-  for(int i = text.length - 1; i >= 0; i--){
-    if(passedSeparator == false){
-      if(text[i] == separator) passedSeparator = true;
-    }
-    else{
-      if(numbersPassed == 3){ //we are the 4th number and can insert a spacer to our right
-        int spacerIndex = i + 1;
-
-        //shift the cursor as needed (shift baseOffset and extentOffset separately)
-        baseOffset = shiftCursor(spacerIndex, baseOffset, cursorToRightOfSpacer);
-        extentOffset = shiftCursor(spacerIndex, extentOffset, cursorToRightOfSpacer);
-
-        text = text.substring(0, spacerIndex) + spacer + text.substring(spacerIndex, text.length); //add a spacer to our right
-        numbersPassed = 1;
+    //read the string from right to left to find the separator and then start adding spacer
+    for(int i = text.length - 1; i >= 0; i--){
+      if(passedSeparator == false){
+        if(text[i] == separator) passedSeparator = true;
       }
-      else numbersPassed++;
-    }
-  }
+      else{
+        if(numbersPassed == 3){ //we are the 4th number and can insert a spacer to our right
+          int spacerIndex = i + 1;
 
-  //return the corrected values
-  return correctTextEditingValueOffsets(
-      TextEditingValue(
-        text: text,
-        selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
-      )
-  );
+          //shift the cursor as needed (shift baseOffset and extentOffset separately)
+          baseOffset = shiftCursor(spacerIndex, baseOffset, cursorToRightOfSpacer);
+          extentOffset = shiftCursor(spacerIndex, extentOffset, cursorToRightOfSpacer);
+
+          text = text.substring(0, spacerIndex) + spacer + text.substring(spacerIndex, text.length); //add a spacer to our right
+          numbersPassed = 1; //we have passed ourselves
+        }
+        else numbersPassed++;
+      }
+    }
+
+    //return the corrected values
+    return correctTextEditingValueOffsets(newTEV(text, baseOffset, extentOffset));
+  }
 }
 
 int shiftCursor(int spacerIndex, int cursorIndex, bool cursorToRightOfSpacer){
@@ -468,39 +472,37 @@ int shiftCursor(int spacerIndex, int cursorIndex, bool cursorToRightOfSpacer){
 
 /// NOTE: we want to modify the offsets to show up in the locations they would if the mask was removed
 TextEditingValue removeSpacers(TextEditingValue value, String spacer){
-  //prepare variables
-  String text = value.text;
-  int baseOffset = value.selection.baseOffset;
-  int extentOffset = value.selection.extentOffset;
+  if(value.text.length == 0) return value;
+  else{
+    //prepare variables
+    String text = value.text;
+    int baseOffset = value.selection.baseOffset;
+    int extentOffset = value.selection.extentOffset;
 
-  //remove all the spacers and shift the offset accordingly
-  for(int index = text.length -1; index >= 0; index--){
-    if(text[index] == spacer){
-      //remove the character
-      text = removeCharAtIndex(text, index);
+    //remove all the spacers and shift the offset accordingly
+    for(int index = text.length - 1; index >= 0; index--){
+      if(text[index] == spacer){
+        //remove the character
+        text = removeCharAtIndex(text, index);
 
-      //shift the offset the left
-      if(index < baseOffset) baseOffset--;
-      if(index < extentOffset) extentOffset--;
+        //shift the offset the left
+        if(index < baseOffset) baseOffset--;
+        if(index < extentOffset) extentOffset--;
+      }
     }
-  }
 
-  //return the string without spacers
-  return correctTextEditingValueOffsets(
-      TextEditingValue(
-        text: text,
-        selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
-      )
-  );
+    //return the string without spacers
+    return correctTextEditingValueOffsets(newTEV(text, baseOffset, extentOffset));
+  }
 }
 
-//---------------OFFSET helpers
+/// --------------------------------------------------OFFSET FUNCTIONS--------------------------------------------------
 
 TextEditingValue correctNewTextEditingValueOffsets(String text, int offset){
   return correctTextEditingValueOffsets(
       TextEditingValue(
         text: text,
-        /// NOTE: I'm using this instead of "TextSelection.collapsed()" because at the time of this writing it was causing issues for some reason
+        /// NOTE: I might also be able to use "TextSelection.collapsed()"
         selection: TextSelection(baseOffset: offset, extentOffset: offset),
         /// We don't worry about composing because in no instance is it necessary to select anything for the user
         /// if the user deletes by the delete key they are not expecting anything to be selected regardless of how many characters they had selected or where
@@ -512,16 +514,13 @@ TextEditingValue correctNewTextEditingValueOffsets(String text, int offset){
 /// NOTE: this correct TextEditingValues in a way that I would expect them to do so automatically (but don't)
 TextEditingValue correctTextEditingValueOffsets(TextEditingValue value){
   String text = value.text;
-  int baseOffset = lockOffsetsWithinRange(text, value.selection.baseOffset);
-  int extentOffset = lockOffsetsWithinRange(text, value.selection.extentOffset);
+  int baseOffset = lockOffsetWithinRange(text, value.selection.baseOffset);
+  int extentOffset = lockOffsetWithinRange(text, value.selection.extentOffset);
   var correctOffsets = correctOverlappingOffsets(baseOffset, extentOffset);
-  return TextEditingValue(
-    text: text,
-    selection: TextSelection(baseOffset: correctOffsets[0], extentOffset: correctOffsets[1]),
-  );
+  return newTEV(text, correctOffsets[0], correctOffsets[1]);
 }
 
-int lockOffsetsWithinRange(String str, int offset){
+int lockOffsetWithinRange(String str, int offset){
   offset = (offset < 0) ? 0 : offset;
   offset = (str.length < offset) ? str.length : offset;
   return offset;
@@ -536,40 +535,22 @@ List correctOverlappingOffsets(int baseOffset, int extentOffset){
   return [baseOffset, extentOffset];
 }
 
-//---------------OTHER helpers
-
-TextEditingValue removeLeading0s(TextEditingValue value){
-  if(value.text.length == 0) return value;
-  else{
-    //prepare variables
-    String text = value.text;
-    int baseOffset = value.selection.baseOffset;
-    int extentOffset = value.selection.extentOffset;
-
-    //remove all leading 0s
-    while(text.length != 0 && text[0] == '0'){
-      //remove the zero
-      text = removeCharAtIndex(text, 0);
-
-      //adjust the cursor properly
-      if(0 < baseOffset) baseOffset--; //shift left
-      if(0 < extentOffset) extentOffset--; //shift left
-    }
-
-    return correctTextEditingValueOffsets(
-        TextEditingValue(
-          text: text,
-          selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
-        )
-    );
-  }
+TextEditingValue newTEV(String text, int baseOffset, int extentOffset){
+  return TextEditingValue(
+    text: text,
+    selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
+  );
 }
 
+/// --------------------------------------------------OTHER FUNCTIONS--------------------------------------------------
+
 String removeCharAtIndex(String str, int index){
+  //tertiary op used for exception where there is no first half
   String firstHalf = (0 == index) ? "" : str.substring(0, index);
   return firstHalf + str.substring(index + 1);
 }
 
+//NOTE: this has been thoroughly tested
 int addedCharacterCount(TextEditingValue oldValue, String newValue){
   //newCharCount = oldCharCount - numberOfCharsWeRemoved + numberOfCharsWeAddedThatPassed
   //(newCharCount - oldCharCount) + numberOfCharsWeRemoved = numberOfCharsWeAddedThatPassed
@@ -585,7 +566,7 @@ int addedCharacterCount(TextEditingValue oldValue, String newValue){
 }
 
 /// NOTE: assumes the string has AT MOST one separator
-String ensureValuesAfterSeparator(String str, String separator, int precision, {bool removeLoneSeparator: true}){
+String ensureValuesAfterSeparator(String str, String separator, int precision, {bool removeLoneSeparator: true}){ //TODO... check
   //grab the index of the separator
   int separatorIndex = str.indexOf(separator);
 
@@ -640,12 +621,15 @@ String ensureValuesAfterSeparator(String str, String separator, int precision, {
   }
 }
 
-//---------------DEBUGGING
+/// --------------------------------------------------DEBUG MODE--------------------------------------------------
 
+bool debugMode = true;
 void printDebug(String description, TextEditingValue oldValue, TextEditingValue newValue){
-  print(description + "*************************" + oldValue.text
-      + " [" + oldValue.selection.baseOffset.toString() + "->" + oldValue.selection.extentOffset.toString() + "]"
-  + " => " + newValue.text
-      + " [" + newValue.selection.baseOffset.toString() + "->" + newValue.selection.extentOffset.toString() + "]"
-  );
+  if(debugMode){
+    print(description + "*************************" + oldValue.text
+        + " [" + oldValue.selection.baseOffset.toString() + "->" + oldValue.selection.extentOffset.toString() + "]"
+        + " => " + newValue.text
+        + " [" + newValue.selection.baseOffset.toString() + "->" + newValue.selection.extentOffset.toString() + "]"
+    );
+  }
 }

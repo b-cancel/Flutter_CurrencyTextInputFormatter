@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tip_calc/currencyFormatter.dart';
-import 'package:flutter_fluid_slider/flutter_fluid_slider.dart';
 
 //TODO... show a message if
 // (1) the user placed anything except numbers, and the decimal
@@ -66,7 +65,7 @@ class _MyHomePageState extends State<MyHomePage> {
     //update programmatically (bill gets no update)
     this.totalAmount = totalAmount; //REQUIRED
     double tipAmount = totalAmount - billAmount;
-    if(tipAmount == 0) tipPercent = 0;
+    if(billAmount == 0) tipPercent = 0;
     else tipPercent = (tipAmount / billAmount) * 100;
 
     //update variables
@@ -112,12 +111,12 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void updateStrings(){
-    billString = stringDecoration(billAmount, showSpacers: true, currencyIdentifier: '\$ ');
-    tipPercentString = stringDecoration(tipPercent, showSpacers: true, currencyIdentifier: ' %', currencyIdentifierOnLeft: false);
-    totalString = stringDecoration(totalAmount, showSpacers: true, currencyIdentifier: '\$ ');
+    billString = stringDecoration(billAmount, showSpacers: true, currencyIdentifier: '\$');
+    tipPercentString = stringDecoration(tipPercent, showSpacers: true, currencyIdentifier: '%', currencyIdentifierOnLeft: false);
+    totalString = stringDecoration(totalAmount, showSpacers: true, currencyIdentifier: '\$');
   }
 
-  String stringDecoration(double num, {
+  String stringDecoration(double number, {
     bool rightPercent: false,
     bool showSpacers: false,
     String separator: '.',
@@ -125,8 +124,8 @@ class _MyHomePageState extends State<MyHomePage> {
     String currencyIdentifier: '',
     bool currencyIdentifierOnLeft: true,
   }){
-    String numString = removeExtraValuesAfterSeparator(num.toString(), (rightPercent) ? 0 : 2);
-    numString = currencyMask(numString, '.', ',');
+    String numString = addCurrencyMask(number.toString(), '.', ',');
+    numString = addCurrencyIdentifier(numString, '\$', true);
     numString = ensureValuesAfterSeparator(numString, '.', (rightPercent) ? 0 : 2);
 
     if(showSpacers || currencyIdentifier != ''){
@@ -244,11 +243,17 @@ class _MyHomePageState extends State<MyHomePage> {
                           contentPadding: EdgeInsets.all(0.0),
                           border: InputBorder.none,
                           hintStyle: textLargePeach,
-                          hintText: "\$ 0.00",
+                          hintText: "\$0.00",
                         ),
                         inputFormatters: [
                           new CurrencyTextInputFormatter(updateTotal),
                         ],
+                        onEditingComplete: (){
+                          //after we finish editing our value format the value to look pretty
+                          FocusScope.of(context).requestFocus(new FocusNode());
+                          updateStrings();
+                          totalController.text = totalString;
+                        },
                       ),
                     ),
                   ],
@@ -284,11 +289,17 @@ class _MyHomePageState extends State<MyHomePage> {
                                 contentPadding: EdgeInsets.all(0.0),
                                 border: InputBorder.none,
                                 hintStyle: textMediumPeach,
-                                hintText: "\$ 0.00",
+                                hintText: "\$0.00",
                               ),
                               inputFormatters: [
                                 new CurrencyTextInputFormatter(updateBill),
                               ],
+                              onEditingComplete: (){
+                                //after we finish editing our value format the value to look pretty
+                                FocusScope.of(context).requestFocus(new FocusNode());
+                                updateStrings();
+                                billController.text = billString;
+                              },
                             ),
                           ),
                         ],
@@ -319,17 +330,22 @@ class _MyHomePageState extends State<MyHomePage> {
                                 contentPadding: EdgeInsets.all(0.0),
                                 border: InputBorder.none,
                                 hintStyle: textMediumPeach,
-                                hintText: "0.00 %",
+                                hintText: "0.00%",
                                 suffixStyle: textMediumPeach,
                               ),
                               inputFormatters: [
                                 new CurrencyTextInputFormatter(
                                   updateTipPercent,
-                                  currencyIdentifier: ' %',
+                                  currencyIdentifier: '%',
                                   currencyIdentifierOnLeft: false,
-                                  maskWithSpacers: false,
                                 ),
                               ],
+                              onEditingComplete: (){
+                                //after we finish editing our value format the value to look pretty
+                                FocusScope.of(context).requestFocus(new FocusNode());
+                                updateStrings();
+                                tipController.text = tipPercentString;
+                              },
                             ),
                           ),
                         ],
