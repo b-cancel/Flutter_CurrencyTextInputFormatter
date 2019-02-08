@@ -41,8 +41,9 @@ import 'package:flutter/services.dart';
 /// 3. I didn't try to enforce any minimum values because this doesn't make sense since the field will start off initially as empty
 
 //TODO... plan for all these currency codes https://en.wikipedia.org/wiki/ISO_4217
-
 //TODO... test a precision of 0 that should not allow anything after the decimal place (and not allow a decimal either)
+//TODO... we might want to avoid making any corrections if the string is ESSENTIALLY the same as the previous...
+//  - EX: old: 12.34... new is 12.345... OR new is 12.340000
 
 class CurrencyTextInputFormatter extends TextInputFormatter {
 
@@ -51,21 +52,23 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
   void Function(double) runAfterComplete;
 
   bool enforceMaxDigitsBefore;
-  int maxDigitsBeforeDecimal;
+  int maxDigitsBeforeDecimal; /// NOTE: we assume this is >= 0
 
   bool enforceMaxDigitsAfter;
-  int maxDigitsAfterDecimal;
+  int maxDigitsAfterDecimal; /// NOTE: we assume this is >= 0
 
-  String separator;
+  String separator; /// NOTE: we assume this is just ONE character
 
+  /// NOTE: we assume you only want spacer between the digits on the left side
   bool addMaskWithSpacers;
-  String spacer;
+  String spacer; /// NOTE: we assume this is just ONE character
 
   bool addCurrencyIdentifier;
-  String currencyIdentifier;
+  String currencyIdentifier; /// NOTE: this CAN BE multiple characters (for country codes... EX: $ OR USD)
   bool currencyIdentifierOnLeft; /// FALSE is on right
+  //TODO... we might want to add the ability to place 2 different things on the left and right of the string
 
-  bool allowLeading0s;
+  bool allowLeading0s; /// WHY would you ever want to allow them... gross...
 
   //USD format is default
   CurrencyTextInputFormatter(
@@ -138,6 +141,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
       printDebug("AFTER INDEX CORRECTION", oldValue, newValue);
 
+      //TODO... I seems like this isn't really necessary but it allow for more identifiers... because it lets our separator value to be within the identifier without causing issues
       //remove identifiers
       if(addCurrencyIdentifier){
         oldValue = removeIdentifier(oldValue, currencyIdentifier, currencyIdentifierOnLeft);
@@ -146,6 +150,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         printDebug("AFTER IDENTIFIER REMOVAL", oldValue, newValue);
       }
 
+      //TODO... I don't think this is really necessary (BUT it might be usable as an optimization)
       //handle masking (assumes that if this is off the string doesn't have a mask)
       if(addMaskWithSpacers){ //NOTE: its important that both of these are masked so that we can get an accurate character count
         oldValue = removeSpacers(oldValue, spacer);
@@ -157,30 +162,35 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
       /// -------------------------MAIN ERROR CORRECTION BELOW-------------------------
       /// NOTE: oldValue is assumed to already follow these rules
 
-      /*
-      printDebug("AFTER MASK REMOVAL - BEFORE LEADING 0s REMOVAL", oldValue, newValue);
+      // (0) remove anything that isn't a number or a separator
+      // (1) make sure we have AT MOST one separator
 
-      //remove leading 0s (NOTE: oldValue is assumed to already follow these rules)
-      if(allowLeading0s == false) newValue = removeLeading0s(newValue);
+      printDebug("AFTER ??? - [BOTH SHOULD BE PARASABLE AS DOUBLES -w/o- correct limits]", oldValue, newValue);
 
-      printDebug("AFTER LEADING 0s REMOVED - BEFORE ALL EXCEPT NUMS AND SEPARATORS ARE REMOVED", oldValue, newValue);
+      // (2) remove leading 0s
+      if(allowLeading0s == false){
+        newValue = removeLeading0s(newValue);
 
-      // remove everything except NUMBERS AND the SEPARATOR (NOTE: oldValue is assumed to already follow these rules
-      newValue = removeAllButNumbersAndSeparator(newValue, separator);
+        printDebug("AFTER REMOVE LEADING 0s", oldValue, newValue);
+      }
 
-      printDebug("AFTER ALL EXCEPT NUMS AND SEPARATORS ARE REMOVED - BEFORE ALL BUT ONE SEPARAOR REMOVED", oldValue, newValue);
+      // (3) ensure limits before decimal
+      if(enforceMaxDigitsBefore){
+        newValue = ensureMaxDigitsBeforeDecimal(newValue, maxDigitsBeforeDecimal);
 
-      // make sure that we allow at most one SEPARATOR
-      int addedCharCount = addedCharacterCount(oldValue, newValue.text);
-      print("characters Addded " + addedCharCount.toString());
-      //newValue = removeAllButOneSeparator(newValue.text, separator, oldValue.selection.baseOffset, oldValue.selection.extentOffset, addedCharCount);
-      */
+        printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue);
+      }
 
-      // truncate -> selection correction
+      // (4) ensure limits after decimal
+      if(enforceMaxDigitsAfter){
+        newValue = ensureMaxDigitsAfterDecimal(newValue, maxDigitsAfterDecimal);
+
+        printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue);
+      }
 
       /// -------------------------MAIN ERROR CORRECTION ABOVE-------------------------
 
-      printDebug("AFTER ERROR CORRECTION - [BOTH SHOULD BE PARASABLE AS DOUBLES]", oldValue, newValue);
+      printDebug("AFTER ERROR CORRECTION - [BOTH SHOULD BE PARASABLE AS DOUBLES -with- correct limits]", oldValue, newValue);
 
       //run passed function that saves our currency as a double
       double oldDouble = convertToDouble(oldValue.text);
@@ -189,7 +199,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
       //handle masking
       if(addMaskWithSpacers){
-        if(debugMode) oldValue = addSpacers(oldValue, separator, spacer); //TODO... this is only for debugging
+        if(debugMode) oldValue = addSpacers(oldValue, separator, spacer); //note: this is only for debugging
         newValue = addSpacers(newValue, separator, spacer);
 
         printDebug("AFTER MASK ADD", oldValue, newValue);
@@ -197,24 +207,10 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
       //add identifiers (if will only not do so if your identifier is nothing)
       if(addCurrencyIdentifier){
-        if(debugMode) oldValue = addIdentifier(oldValue, currencyIdentifier, currencyIdentifierOnLeft); //TODO... this is only for debugging
+        if(debugMode) oldValue = addIdentifier(oldValue, currencyIdentifier, currencyIdentifierOnLeft); //note: this is only for debugging
         newValue = addIdentifier(newValue, currencyIdentifier, currencyIdentifierOnLeft);
 
         printDebug("AFTER CURRENCY IDENTIFIER ADD", oldValue, newValue);
-      }
-
-      if(enforceMaxDigitsBefore){
-        if(debugMode) oldValue = ensureMaxDigitsBeforeDecimal(oldValue, maxDigitsBeforeDecimal); //TODO... this is only for debugging
-        newValue = ensureMaxDigitsBeforeDecimal(newValue, maxDigitsBeforeDecimal);
-
-        printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue);
-      }
-
-      if(enforceMaxDigitsAfter){
-        if(debugMode) oldValue = ensureMaxDigitsAfterDecimal(oldValue, maxDigitsAfterDecimal); //TODO... this is only for debugging
-        newValue = ensureMaxDigitsAfterDecimal(newValue, maxDigitsAfterDecimal);
-
-        printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue);
       }
 
       oldValue = correctNewTextEditingValueOffsets(oldValue.text, oldValue.selection.baseOffset);
@@ -232,32 +228,9 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
   }
 }
 
-/// --------------------------------------------------ERROR CORRECTING FILTERS--------------------------------------------------
+/// --------------------------------------------------ERROR CORRECTING FUNCTIONS--------------------------------------------------
 
-
-
-TextEditingValue removeLeading0s(TextEditingValue value){
-  if(value.text.length == 0) return value;
-  else{
-    //prepare variables
-    String text = value.text;
-    int baseOffset = value.selection.baseOffset;
-    int extentOffset = value.selection.extentOffset;
-
-    //remove all leading 0s
-    while(text.length != 0 && text[0] == '0'){
-      //remove the zero
-      text = removeCharAtIndex(text, 0);
-
-      //adjust the cursor properly
-      if(0 < baseOffset) baseOffset--; //shift left
-      if(0 < extentOffset) extentOffset--; //shift left
-    }
-
-    return correctTextEditingValueOffsets(newTEV(text, baseOffset, extentOffset));
-  }
-}
-
+/*
 TextEditingValue removeAllButNumbersAndSeparator(TextEditingValue value, String separator){
   //prepare variables
   String text = value.text;
@@ -335,7 +308,6 @@ String removeAllButOneSeparator(String text, String separator, int baseOffset, i
   else return text;
 }
 
-/*
 /// NOTE: assumes the string has AT MOST one separator
 /// assumes that you want to remove the separator if there are no values after it
 String removeExtraValuesAfterSeparator(String string, int valuesAfterSeparator, {bool showSinglePeriod = false}){
@@ -368,6 +340,31 @@ int selectionCorrection(int oldBaseOffset, int countOfNewCharsThatPassedFilters)
   // in all cases, going to oldBaseOffset works
 }
 */
+
+/// --------------------------------------------------PREFERENCE LIMIT FUNCTIONS--------------------------------------------------
+/// NOTE: all of these expect a string that CAN BE parsable as a double
+
+TextEditingValue removeLeading0s(TextEditingValue value){
+  if(value.text.length == 0) return value;
+  else{
+    //prepare variables
+    String text = value.text;
+    int baseOffset = value.selection.baseOffset;
+    int extentOffset = value.selection.extentOffset;
+
+    //remove all leading 0s
+    while(text.length != 0 && text[0] == '0'){
+      //remove the zero
+      text = removeCharAtIndex(text, 0);
+
+      //adjust the cursor properly
+      if(0 < baseOffset) baseOffset--; //shift left
+      if(0 < extentOffset) extentOffset--; //shift left
+    }
+
+    return correctTextEditingValueOffsets(newTEV(text, baseOffset, extentOffset));
+  }
+}
 
 TextEditingValue ensureMaxDigitsBeforeDecimal(TextEditingValue value, int maxDigitsBeforeDecimal){
   return value;

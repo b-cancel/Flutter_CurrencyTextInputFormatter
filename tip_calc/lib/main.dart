@@ -626,8 +626,8 @@ class _MyHomePageState extends State<MyHomePage> {
           borderRadius: new BorderRadius.all(const Radius.circular(8.0)),
           gradient: LinearGradient(
             colors: [gradientLight, gradientDark],
-            begin: FractionalOffset.topLeft,
-            end: FractionalOffset.bottomRight,
+            begin: FractionalOffset.bottomRight,
+            end: FractionalOffset.topLeft,
             stops: [0.0,1.0],
             tileMode: TileMode.clamp,
           ),
@@ -636,6 +636,7 @@ class _MyHomePageState extends State<MyHomePage> {
           percent.toString() + "%",
           style: TextStyle(
             color: Colors.white,
+            fontWeight: FontWeight.bold,
             fontSize: 24,
           ),
         ),
