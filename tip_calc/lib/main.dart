@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'package:tip_calc/currencyFormatter.dart';
+import 'package:tip_calc/currencyUtils.dart';
 
 //TODO... show a message if
 // (1) the user placed anything except numbers, and the decimal
@@ -124,9 +126,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   String stringDecoration(double number, {String currencyIdentifier: '', bool currencyIdentifierOnLeft: true}){
     String numberString = number.toString();
-    numberString = ensureMinDigitsAfterSeparatorString(numberString, '.', 2); //NOTE: this doesn't defines max ONLY a min
-    numberString = addCurrencyMask(numberString, '.', ','); //NOTE: I choose to also add this to percent, in case you want to tip 1,000 percent for some reason
-    numberString = addCurrencyIdentifier(numberString, currencyIdentifier, currencyIdentifierOnLeft);
+    numberString = addTrailing0s(numberString, '.', 2); //NOTE: this doesn't defines max ONLY a min
+    numberString = addSpacersString(numberString, '.', ','); //NOTE: I choose to also add this to percent, in case you want to tip 1,000 percent for some reason
+    //numberString = addRightTagString(numberString, currencyIdentifier, currencyIdentifierOnLeft);
 
     return numberString;
   }
@@ -334,8 +336,8 @@ class _MyHomePageState extends State<MyHomePage> {
                               inputFormatters: [
                                 new CurrencyTextInputFormatter(
                                   updateTipPercent,
-                                  currencyIdentifier: '%',
-                                  currencyIdentifierOnLeft: false,
+                                  leftTag: '%',
+                                  //TODO... percent modifications here
                                 ),
                               ],
                               onEditingComplete: (){
