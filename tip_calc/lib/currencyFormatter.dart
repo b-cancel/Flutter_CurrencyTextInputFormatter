@@ -10,7 +10,7 @@ import 'package:tip_calc/currencyUtils.dart';
 /// 1. I can select the text in the input field but I can't move the start tick, ONLY the end tick
 ///   - only occurs when your ANDROID phone is plugged in and not when you are running the emulator and using the mouse to simulate touch
 /// 2. its possible for baseOffset AND OR extentOffset to be less than 0... which makes no sense
-///   - I have offset correctors to work past this
+///   - I have offset correctors to work around this
 ///   - one situation it occurs in consistently is when you clear the field (some values go to -1)
 
 /// FRAMEWORK NOTES:
@@ -47,7 +47,7 @@ import 'package:tip_calc/currencyUtils.dart';
 /// FUTURE PLANS:
 /// 1. this should function with all these currency codes https://en.wikipedia.org/wiki/ISO_4217
 ///   - automatically set the most variables possible depending on the selected code
-/// 2. avoid making any corrections if the string is ESSENTIALLY the same as the previous
+/// 2. avoid making any corrections if the string is ESSENTIALLY the same as the previous => speed improvement (might be negligible)
 ///   - EX: old: 12.34... new is 12.345... OR new is 12.340000
 
 class CurrencyTextInputFormatter extends TextInputFormatter {
@@ -375,33 +375,6 @@ int addedCharacterCount(TextEditingValue oldValue, String newValue){
     numberOfCharsWeRemoved = (newValue.length < (oldValue.text).length) ? 1 : 0;
   }
   return countDifference + numberOfCharsWeRemoved;
-}
-
-/// --------------------------------------------------VALUE REPORTING FUNCTION--------------------------------------------------
-
-//TODO... can this convert a string with leading 0s? IF not then fix it
-
-/// NOTE: returns -1 if your string has more than 1 separator
-double convertToDouble(String str){
-  String strWithPeriodSeparator = ""; //set it to something not null so we can add to it
-
-  //loop through the number and assume anything that isn't a number is a separator
-  for(int i=0; i<str.length; i++){
-    if(48 <= str.codeUnitAt(i) && str.codeUnitAt(i) <= 57) strWithPeriodSeparator = strWithPeriodSeparator + str[i];
-    else strWithPeriodSeparator = strWithPeriodSeparator + "."; //replace the separator for a period for easy parsing as a double
-  }
-
-  if(strWithPeriodSeparator.indexOf('.') == -1){
-    if(strWithPeriodSeparator == "") return 0; //we have no value
-    else return double.parse(strWithPeriodSeparator); //no separator exists so its already parsable
-  }
-  else{
-    if(strWithPeriodSeparator == '.') return 0; //we have no value
-    else{
-      if(strWithPeriodSeparator.indexOf('.') != str.lastIndexOf('.')) return -1; //we have more than 1 separator and this is illegal
-      else return double.parse(strWithPeriodSeparator);
-    }
-  }
 }
 
 /// --------------------------------------------------DEBUG MODE--------------------------------------------------

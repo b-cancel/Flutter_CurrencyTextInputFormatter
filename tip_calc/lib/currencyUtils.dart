@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 //TODO... removeTrailing0s
 //TODO... addLeading0sString
 //TODO... addLeading0s
+//---
+//TODO... addTrailing0s
 
 /// --------------------------------------------------SPECIFIC TO LEFT TO RIGHT NUMBER SYSTEMS
 
@@ -12,7 +14,7 @@ String removeLeading0sString(String text){
   return removeLeading0s(new TextEditingValue(text: text)).text;
 }
 
-TextEditingValue removeLeading0s(TextEditingValue value){
+TextEditingValue removeLeading0s(TextEditingValue value){ //TODO... final testing
   if(value.text.length == 0) return value;
   else{
     //prepare variables
@@ -35,7 +37,7 @@ TextEditingValue removeLeading0s(TextEditingValue value){
 }
 
 /// NOTE: assumes the string has AT MOST one separator
-String addTrailing0s(String str, String separator, int minDigitsAfterDecimal, {bool removeLoneSeparator: true}){
+String addTrailing0sString(String str, String separator, int minDigitsAfterDecimal, {bool removeLoneSeparator: true}){ //TODO... final testing
   if(minDigitsAfterDecimal < 0) return str; //there is no such thing, If I could use an unsigned int here I would
   else{
     //grab the index of the separator
@@ -59,6 +61,41 @@ String addTrailing0s(String str, String separator, int minDigitsAfterDecimal, {b
 
       //return the string with the new number of 0s at the end
       return str;
+    }
+  }
+}
+
+/// --------------------------------------------------GOOD STRING TO DOUBLE PARSER--------------------------------------------------
+
+/// Handles
+/// 1. strings with ANY separator (not just a decimal)
+/// 2. empty strings
+/// 2. strings with just a separator
+/// 4. string with more than 1 separator
+///
+/// Already Handled
+/// 1. string with leading 0s
+///
+/// NOTE: assumes that anything that isn't a number is a separator
+/// NOTE: returns -1 if your string has more than 1 separator
+double convertToDouble(String str){
+  String strWithPeriodSeparator = ""; //set it to something not null so we can add to it
+
+  //loop through the number and assume anything that isn't a number is a separator
+  for(int i=0; i<str.length; i++){
+    if(48 <= str.codeUnitAt(i) && str.codeUnitAt(i) <= 57) strWithPeriodSeparator = strWithPeriodSeparator + str[i];
+    else strWithPeriodSeparator = strWithPeriodSeparator + "."; //replace the separator for a period for easy parsing as a double
+  }
+
+  if(strWithPeriodSeparator.indexOf('.') == -1){
+    if(strWithPeriodSeparator == "") return 0; //we have no value
+    else return double.parse(strWithPeriodSeparator); //no separator exists so its already parsable
+  }
+  else{
+    if(strWithPeriodSeparator == '.') return 0; //we have no value
+    else{
+      if(strWithPeriodSeparator.indexOf('.') != str.lastIndexOf('.')) return -1; //we have more than 1 separator and this is illegal
+      else return double.parse(strWithPeriodSeparator);
     }
   }
 }
@@ -87,7 +124,7 @@ String ensureMaxDigitsString(String text, String separator, int maxDigits, {bool
   return ensureMaxDigits(new TextEditingValue(text: text), separator, maxDigits, removeBeforeSeparator: removeBeforeSeparator).text;
 }
 
-TextEditingValue ensureMaxDigits(TextEditingValue value, String separator, int maxDigits, {bool removeBeforeSeparator}){
+TextEditingValue ensureMaxDigits(TextEditingValue value, String separator, int maxDigits, {bool removeBeforeSeparator}){ //TODO... final testing
   //prepare out variables
   String text = value.text;
   int baseOffset = value.selection.baseOffset;
@@ -151,7 +188,7 @@ String addTagString(String text, String tag, {bool tagOnLeft}){
 }
 
 /// ASSUMES that we already know the user wants an identifier
-TextEditingValue addTag(TextEditingValue value, String tag, {bool tagOnLeft}){
+TextEditingValue addTag(TextEditingValue value, String tag, {bool tagOnLeft}){ //TODO... final testing
   if(tag == '') return value;
   else{
     //prepare variables
@@ -193,7 +230,7 @@ String removeTagString(String text, String tag, {bool tagOnLeft}){
   return removeTag(new TextEditingValue(text: text), tag, tagOnLeft: tagOnLeft).text;
 }
 
-TextEditingValue removeTag(TextEditingValue value, String tag, {bool tagOnLeft}){
+TextEditingValue removeTag(TextEditingValue value, String tag, {bool tagOnLeft}){ //TODO... final testing
   if(tag == '' || tag == null) return value;
   else{ /// NOTE: although they shouldn't the user might try to mess with the identifier so we have to plan for that
     if(value.text.contains(tag) == false) return value;
@@ -240,7 +277,7 @@ String addSpacersString(String value, String separator, String spacer){
 }
 
 /// NOTE: assumes the string has AT MOST one separator
-TextEditingValue addSpacers(TextEditingValue value, String separator, String spacer, {bool cursorToRightOfSpacer: true}){
+TextEditingValue addSpacers(TextEditingValue value, String separator, String spacer, {bool cursorToRightOfSpacer: true}){ //TODO... final testing
   if(value.text.length == 0) return value;
   else{
     //create references to our variables
@@ -291,8 +328,7 @@ String removeSpacerString(String text, String spacer){
   return removeSpacers(new TextEditingValue(text: text), spacer).text;
 }
 
-/// NOTE: we want to modify the offsets to show up in the locations they would if the mask was removed
-TextEditingValue removeSpacers(TextEditingValue value, String spacer){
+TextEditingValue removeSpacers(TextEditingValue value, String spacer){ //TODO... final testing
   if(value.text.length == 0) return value;
   else{
     //prepare variables

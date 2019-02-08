@@ -126,7 +126,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   String stringDecoration(double number, {String currencyIdentifier: '', bool currencyIdentifierOnLeft: true}){
     String numberString = number.toString();
-    numberString = addTrailing0s(numberString, '.', 2); //NOTE: this doesn't defines max ONLY a min
+    numberString = addTrailing0sString(numberString, '.', 2); //NOTE: this doesn't defines max ONLY a min
     numberString = addSpacersString(numberString, '.', ','); //NOTE: I choose to also add this to percent, in case you want to tip 1,000 percent for some reason
     //numberString = addRightTagString(numberString, currencyIdentifier, currencyIdentifierOnLeft);
 
