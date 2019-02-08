@@ -30,6 +30,8 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
+  bool debugMode = true;
+
   double tipSliderValue = 10.0;
 
   TextEditingController totalController = new TextEditingController();
@@ -57,6 +59,7 @@ class _MyHomePageState extends State<MyHomePage> {
   String billString;
   String tipPercentString;
 
+  //TODO... we should be able to set starter values for all of these (make sure to handle exceptions)
   double totalAmount = 0;
   double billAmount = 0;
   double tipPercent = 0; //1% is 1.0
@@ -73,7 +76,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     //actually trigger changes in the form
     tipController.text = tipPercentString;
-    print("UPDATING TOTAL--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
+    if(debugMode) print("UPDATING TOTAL--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
   }
 
   void updateBill(double billAmount){
@@ -88,12 +91,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     //actually trigger changes in the form
     totalController.text = totalString;
-    print("UPDATING BILL--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
-
-    //as an added bonus this update our standard rates
-    setState(() {
-
-    });
+    if(debugMode) print("UPDATING BILL--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
   }
 
   void updateTipPercent(double tipPercent){
@@ -107,37 +105,31 @@ class _MyHomePageState extends State<MyHomePage> {
 
     //actually trigger changes in the form
     totalController.text = totalString;
-    print("UPDATING TIP PERCENT--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
+    if(debugMode) print("UPDATING TIP PERCENT--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
   }
 
+  /// NOTE: this doesn't update things visually
   void updateStrings(){
-    billString = stringDecoration(billAmount, showSpacers: true, currencyIdentifier: '\$');
-    tipPercentString = stringDecoration(tipPercent, showSpacers: true, currencyIdentifier: '%', currencyIdentifierOnLeft: false);
-    totalString = stringDecoration(totalAmount, showSpacers: true, currencyIdentifier: '\$');
+    billString = stringDecoration(billAmount, currencyIdentifier: '\$');
+    tipPercentString = stringDecoration(tipPercent, currencyIdentifier: '%', currencyIdentifierOnLeft: false);
+    totalString = stringDecoration(totalAmount, currencyIdentifier: '\$');
   }
 
   String stringDecoration(double number, {
     bool rightPercent: false,
-    bool showSpacers: false,
-    String separator: '.',
-    String spacer: ',',
+    /// other function vars
     String currencyIdentifier: '',
     bool currencyIdentifierOnLeft: true,
   }){
-    String numString = addCurrencyMask(number.toString(), '.', ',');
-    numString = addCurrencyIdentifier(numString, '\$', true);
-    numString = ensureValuesAfterSeparator(numString, '.', (rightPercent) ? 0 : 2);
-
-    if(showSpacers || currencyIdentifier != ''){
-      TextEditingValue value = new TextEditingValue(text: numString);
-      if(showSpacers) value = addSpacers(value, separator, spacer);
-      if(currencyIdentifierOnLeft) value = addIdentifier(value, currencyIdentifier, currencyIdentifierOnLeft);
-      numString = value.text;
-    }
+    String numString = addCurrencyMask(number.toString(), '.', ','); //NOTE: I choose to also add this to percent, in case you want to tip 1,000 percent for some reason
+    numString = ensureValuesAfterSeparator(numString, '.', (rightPercent) ? 0 : 2); //TODO... correct this
+    //add the identifier after we truncate the values we don't want (since the currency identifier can go on the right)
+    numString = addCurrencyIdentifier(numString, currencyIdentifier, currencyIdentifierOnLeft);
 
     return numString;
   }
 
+  //can be used to limit device orientation
   @override
   void initState(){
     super.initState();

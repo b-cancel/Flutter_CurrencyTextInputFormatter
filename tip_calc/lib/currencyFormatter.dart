@@ -323,7 +323,7 @@ int selectionCorrection(int oldBaseOffset, int countOfNewCharsThatPassedFilters)
 }
 */
 
-/// -------------------------EVERYTHING BELOW HAS BEEN CHECKED-------------------------
+/// --------------------------------------------------VALUE REPORTING FUNCTION--------------------------------------------------
 
 /// NOTE: returns -1 if your string has more than 1 separator
 double convertToDouble(String str){
@@ -337,7 +337,7 @@ double convertToDouble(String str){
 
   if(strWithPeriodSeparator.indexOf('.') == -1){
     if(strWithPeriodSeparator == "") return 0; //we have no value
-    else return double.parse(strWithPeriodSeparator); //no separator exists so its already in parsable
+    else return double.parse(strWithPeriodSeparator); //no separator exists so its already parsable
   }
   else{
     if(strWithPeriodSeparator == '.') return 0; //we have no value
