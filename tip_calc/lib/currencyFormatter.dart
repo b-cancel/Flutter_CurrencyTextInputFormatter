@@ -441,6 +441,16 @@ TextEditingValue addSpacers(TextEditingValue value, String separator, String spa
     bool passedSeparator = (text.contains(separator)) ? false : true;
     int numbersPassed = 0;
 
+    //define the function we will be using within the loop
+    int shiftCursor(int spacerIndex, int cursorIndex, bool cursorToRightOfSpacer){
+      if(spacerIndex == cursorIndex){
+        if(cursorToRightOfSpacer) return (cursorIndex + 1);
+        else return cursorIndex;
+      }
+      else if(spacerIndex < cursorIndex) return (cursorIndex + 1);
+      else return cursorIndex; /// the string shifts past the point where the cursor is
+    }
+
     //read the string from right to left to find the separator and then start adding spacer
     for(int i = text.length - 1; i >= 0; i--){
       if(passedSeparator == false){
@@ -464,15 +474,6 @@ TextEditingValue addSpacers(TextEditingValue value, String separator, String spa
     //return the corrected values
     return correctTextEditingValueOffsets(newTEV(text, baseOffset, extentOffset));
   }
-}
-
-int shiftCursor(int spacerIndex, int cursorIndex, bool cursorToRightOfSpacer){
-  if(spacerIndex == cursorIndex){
-    if(cursorToRightOfSpacer) return (cursorIndex + 1);
-    else return cursorIndex;
-  }
-  else if(spacerIndex < cursorIndex) return (cursorIndex + 1);
-  else return cursorIndex; /// the string shifts past the point where the cursor is
 }
 
 /// NOTE: we want to modify the offsets to show up in the locations they would if the mask was removed
@@ -518,26 +519,28 @@ TextEditingValue correctNewTextEditingValueOffsets(String text, int offset){
 
 /// NOTE: this correct TextEditingValues in a way that I would expect them to do so automatically (but don't)
 TextEditingValue correctTextEditingValueOffsets(TextEditingValue value){
+  //---define our helper functions
+  int lockOffsetWithinRange(String str, int offset){
+    offset = (offset < 0) ? 0 : offset;
+    offset = (str.length < offset) ? str.length : offset;
+    return offset;
+  }
+
+  List correctOverlappingOffsets(int baseOffset, int extentOffset){
+    if(extentOffset < baseOffset){ //we WANT oldBaseOffset to always be <= oldExtentOffset
+      var temp = baseOffset;
+      baseOffset = extentOffset;
+      extentOffset = temp;
+    }
+    return [baseOffset, extentOffset];
+  }
+
+  //---run the correction
   String text = value.text;
   int baseOffset = lockOffsetWithinRange(text, value.selection.baseOffset);
   int extentOffset = lockOffsetWithinRange(text, value.selection.extentOffset);
   var correctOffsets = correctOverlappingOffsets(baseOffset, extentOffset);
   return newTEV(text, correctOffsets[0], correctOffsets[1]);
-}
-
-int lockOffsetWithinRange(String str, int offset){
-  offset = (offset < 0) ? 0 : offset;
-  offset = (str.length < offset) ? str.length : offset;
-  return offset;
-}
-
-List correctOverlappingOffsets(int baseOffset, int extentOffset){
-  if(extentOffset < baseOffset){ //we WANT oldBaseOffset to always be <= oldExtentOffset
-    var temp = baseOffset;
-    baseOffset = extentOffset;
-    extentOffset = temp;
-  }
-  return [baseOffset, extentOffset];
 }
 
 TextEditingValue newTEV(String text, int baseOffset, int extentOffset){
@@ -555,6 +558,7 @@ String removeCharAtIndex(String str, int index){
   return firstHalf + str.substring(index + 1);
 }
 
+//TODO... for readability it might be best to define this in the only place its used
 //NOTE: this has been thoroughly tested
 int addedCharacterCount(TextEditingValue oldValue, String newValue){
   //newCharCount = oldCharCount - numberOfCharsWeRemoved + numberOfCharsWeAddedThatPassed

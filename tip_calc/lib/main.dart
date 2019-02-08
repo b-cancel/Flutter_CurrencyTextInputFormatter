@@ -122,67 +122,40 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   String stringDecoration(double number, {String currencyIdentifier: '', bool currencyIdentifierOnLeft: true}){
-    String numString = addCurrencyMask(number.toString(), '.', ','); //NOTE: I choose to also add this to percent, in case you want to tip 1,000 percent for some reason
-    numString = ensureMinDigitsAfterDecimal(numString, '.', (currencyIdentifierOnLeft == false) ? 0 : 2); //TODO... correct this
-    //add the identifier after we truncate the values we don't want (since the currency identifier can go on the right)
-    numString = addCurrencyIdentifier(numString, currencyIdentifier, currencyIdentifierOnLeft);
+    String numberString = number.toString();
+    numberString = ensureMinDigitsAfterDecimal(numberString, '.', 2); //NOTE: this doesn't defines max ONLY a min
+    numberString = addCurrencyMask(numberString, '.', ','); //NOTE: I choose to also add this to percent, in case you want to tip 1,000 percent for some reason
+    numberString = addCurrencyIdentifier(numberString, currencyIdentifier, currencyIdentifierOnLeft);
 
-    return numString;
+    return numberString;
   }
 
   /// NOTE: assumes the string has AT MOST one separator
-  String ensureMinDigitsAfterDecimal(String str, String separator, int precision, {bool removeLoneSeparator: true}){ //TODO... check
-    //grab the index of the separator
-    int separatorIndex = str.indexOf(separator);
+  String ensureMinDigitsAfterDecimal(String str, String separator, int minDigitsAfterDecimal, {bool removeLoneSeparator: true}){
+    if(minDigitsAfterDecimal < 0) return str; //there is no such thing, If I could use an unsigned int here I would
+    else{
+      //grab the index of the separator
+      int separatorIndex = str.indexOf(separator);
 
-    //process the string
-    if(precision <= 0){
-      if(precision < 0){
-        if(separatorIndex != -1){
-          //remove all the values before the separator
-          for(int i = str.length - 1; i >= 0; i--){
-            if(str[i] == separator) break; //get out of the loop if needed
-            else str = removeCharAtIndex(str, i); //remove the characters at the right of the separator
-          }
-
-          //remove the lone separator if desired
-          if(removeLoneSeparator) str = removeCharAtIndex(str, separatorIndex);
-        }
-        /// ELSE... there is numbers to the right of the separator to remove
+      if(minDigitsAfterDecimal == 0){
+        if(separatorIndex == -1) return str;
+        else return str.substring(0, separatorIndex + ((removeLoneSeparator) ? 0 : 1));
       }
-
-      /// NOTE: by now the case that occurs when your precision is equal to 0 has been handled
-
-      if(precision == 0) return str;
-      else{ /// NOTE: precision is NEGATIVE
-        separatorIndex = str.indexOf(separator);
-
-        //if the precision is lower than 0 then you MUST remove the separator
-        if(separatorIndex != -1) str = removeCharAtIndex(str, separatorIndex);
-
-        //remove stuff from the back (make sure you don't remove more than the entire string)
-        precision = precision * -1; //turn the number positive
-        precision = (precision < str.length) ? precision : str.length;
-        for(int i = str.length - 1; precision > 0; i--, precision--){
-          str = removeCharAtIndex(str, i);
+      else{
+        //add the separator if you don't already have it
+        if(separatorIndex == -1){
+          str = str + separator;
+          separatorIndex = str.indexOf(separator);
         }
 
+        //add whatever the quantity of characters that you need to to meet the precision requirement
+        int desiredLastIndex = separatorIndex + minDigitsAfterDecimal;
+        int additionsNeeded = desiredLastIndex - (str.length - 1);
+        for(int i = additionsNeeded; i > 0; i--) str = str + '0';
+
+        //return the string with the new number of 0s at the end
         return str;
       }
-    }
-    else{ /// NOTE: precision is POSITIVE
-      //add the separator if you don't already have it
-      if(separatorIndex == -1){
-        str = str + separator;
-        separatorIndex = str.indexOf(separator);
-      }
-
-      //add whatever the quantity of characters that you need to to meet the precision requirement
-      int desiredLastIndex = separatorIndex + precision;
-      int additionsNeeded = desiredLastIndex - (str.length - 1);
-      for(int i = additionsNeeded; i > 0; i--) str = str + '0';
-
-      return str;
     }
   }
 
