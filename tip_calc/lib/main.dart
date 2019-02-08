@@ -5,7 +5,9 @@ import 'package:tip_calc/currencyFormatter.dart';
 //TODO... show a message if
 // (1) the user placed anything except numbers, and the decimal
 // (2) the text has 2 decimals or more
-//TODO... we should always show money amounts with at least 2 values after the decimal
+//TODO... we should be able to set starter values for all of the variables (make sure to handle exceptions)
+//TODO... make all starter values mentioned here set as default and not actual values (so user can easily override them) [maybe bool?]
+//TODO... only update a fields default if there is something actually different
 
 void main() => runApp(MyApp());
 
@@ -61,7 +63,6 @@ class _MyHomePageState extends State<MyHomePage> {
   String billString;
   String tipPercentString;
 
-  //TODO... we should be able to set starter values for all of these (make sure to handle exceptions)
   double totalAmount = 0;
   double billAmount = 0;
   double tipPercent = 0; //1% is 1.0
