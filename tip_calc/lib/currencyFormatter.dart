@@ -30,7 +30,7 @@ import 'package:flutter/services.dart';
 /// 1. we only have a backspace key and not a delete key
 /// 2. you want to keep the separator that was typed first... so if you paste multiple separators you keep the one that is furthest to the left
 /// 3. the mask if enable will push the cursor to the right if it ever has to choose between right and left
-/// 4. We remove things in this order -> (1) currencyIdentifier (2) Mask (2) Leading 0s -> and add them in the inverse order
+/// 4. We remove things in this order -> (1) currencyIdentifier (2) Mask -> and add them in the inverse order
 /// 5. We ony need to report the new double value IF it doesn't match our previous one
 
 /// NOTE:
@@ -38,15 +38,20 @@ import 'package:flutter/services.dart';
 /// 2. because there are so many different steps and its all string parsing which tend to have tons of edge cases
 ///   - I created a [debugMode] variable that can be turned to true to see exactly how the string is bring processed and find the potential bug
 ///   - this exists just in case but I thoroughly tested the code
+/// 3. I didn't try to enforce any minimum values because this doesn't make sense since the field will start off initially as empty
 
 //TODO... plan for all these currency codes https://en.wikipedia.org/wiki/ISO_4217
+
+//TODO... test a precision of 0 that should not allow anything after the decimal place (and not allow a decimal either)
+//TODO... instead of a precision value have 2 variables... "maxDigitsBeforeDecimal" and "maxDigitsAfterDecimal" (both of these should be unsigned ints)
+//TODO... both of above should have accompanying variables "enforceMaxDigitsBeforeDecimal" and "enforceMaxDigitsAfterDecimal"
 
 class CurrencyTextInputFormatter extends TextInputFormatter {
 
   /// --------------------------------------------------VARIABLE PREPARATION--------------------------------------------------
 
   void Function(double) runAfterComplete;
-  int precision; //TODO... test a precision of 0 that should not allow anything after the decimal place (and not allow a decimal either)
+  int precision;
 
   String separator;
 
@@ -563,62 +568,6 @@ int addedCharacterCount(TextEditingValue oldValue, String newValue){
     numberOfCharsWeRemoved = (newValue.length < (oldValue.text).length) ? 1 : 0;
   }
   return countDifference + numberOfCharsWeRemoved;
-}
-
-/// NOTE: assumes the string has AT MOST one separator
-String ensureValuesAfterSeparator(String str, String separator, int precision, {bool removeLoneSeparator: true}){ //TODO... check
-  //grab the index of the separator
-  int separatorIndex = str.indexOf(separator);
-
-  //process the string
-  if(precision <= 0){
-    if(precision < 0){
-      if(separatorIndex != -1){
-        //remove all the values before the separator
-        for(int i = str.length - 1; i >= 0; i--){
-          if(str[i] == separator) break; //get out of the loop if needed
-          else str = removeCharAtIndex(str, i); //remove the characters at the right of the separator
-        }
-
-        //remove the lone separator if desired
-        if(removeLoneSeparator) str = removeCharAtIndex(str, separatorIndex);
-      }
-      /// ELSE... there is numbers to the right of the separator to remove
-    }
-
-    /// NOTE: by now the case that occurs when your precision is equal to 0 has been handled
-
-    if(precision == 0) return str;
-    else{ /// NOTE: precision is NEGATIVE
-      separatorIndex = str.indexOf(separator);
-
-      //if the precision is lower than 0 then you MUST remove the separator
-      if(separatorIndex != -1) str = removeCharAtIndex(str, separatorIndex);
-
-      //remove stuff from the back (make sure you don't remove more than the entire string)
-      precision = precision * -1; //turn the number positive
-      precision = (precision < str.length) ? precision : str.length;
-      for(int i = str.length - 1; precision > 0; i--, precision--){
-        str = removeCharAtIndex(str, i);
-      }
-
-      return str;
-    }
-  }
-  else{ /// NOTE: precision is POSITIVE
-    //add the separator if you don't already have it
-    if(separatorIndex == -1){
-      str = str + separator;
-      separatorIndex = str.indexOf(separator);
-    }
-
-    //add whatever the quantity of characters that you need to to meet the precision requirement
-    int desiredLastIndex = separatorIndex + precision;
-    int additionsNeeded = desiredLastIndex - (str.length - 1);
-    for(int i = additionsNeeded; i > 0; i--) str = str + '0';
-
-    return str;
-  }
 }
 
 /// --------------------------------------------------DEBUG MODE--------------------------------------------------

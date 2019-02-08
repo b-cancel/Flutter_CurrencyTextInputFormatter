@@ -30,6 +30,8 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
+  /// --------------------------------------------------VARIABLE PREPARATION--------------------------------------------------
+
   bool debugMode = true;
 
   double tipSliderValue = 10.0;
@@ -63,6 +65,8 @@ class _MyHomePageState extends State<MyHomePage> {
   double totalAmount = 0;
   double billAmount = 0;
   double tipPercent = 0; //1% is 1.0
+
+  /// --------------------------------------------------MAIN LOGIC FUNCTIONS--------------------------------------------------
 
   void updateTotal(double totalAmount){
     //update programmatically (bill gets no update)
@@ -108,6 +112,8 @@ class _MyHomePageState extends State<MyHomePage> {
     if(debugMode) print("UPDATING TIP PERCENT--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
   }
 
+  /// --------------------------------------------------HELPER FUNCTIONS--------------------------------------------------
+
   /// NOTE: this doesn't update things visually
   void updateStrings(){
     billString = stringDecoration(billAmount, currencyIdentifier: '\$');
@@ -115,19 +121,72 @@ class _MyHomePageState extends State<MyHomePage> {
     totalString = stringDecoration(totalAmount, currencyIdentifier: '\$');
   }
 
-  String stringDecoration(double number, {
-    bool rightPercent: false,
-    /// other function vars
-    String currencyIdentifier: '',
-    bool currencyIdentifierOnLeft: true,
-  }){
+  String stringDecoration(double number, {String currencyIdentifier: '', bool currencyIdentifierOnLeft: true}){
     String numString = addCurrencyMask(number.toString(), '.', ','); //NOTE: I choose to also add this to percent, in case you want to tip 1,000 percent for some reason
-    numString = ensureValuesAfterSeparator(numString, '.', (rightPercent) ? 0 : 2); //TODO... correct this
+    numString = ensureMinDigitsAfterDecimal(numString, '.', (currencyIdentifierOnLeft == false) ? 0 : 2); //TODO... correct this
     //add the identifier after we truncate the values we don't want (since the currency identifier can go on the right)
     numString = addCurrencyIdentifier(numString, currencyIdentifier, currencyIdentifierOnLeft);
 
     return numString;
   }
+
+  /// NOTE: assumes the string has AT MOST one separator
+  String ensureMinDigitsAfterDecimal(String str, String separator, int precision, {bool removeLoneSeparator: true}){ //TODO... check
+    //grab the index of the separator
+    int separatorIndex = str.indexOf(separator);
+
+    //process the string
+    if(precision <= 0){
+      if(precision < 0){
+        if(separatorIndex != -1){
+          //remove all the values before the separator
+          for(int i = str.length - 1; i >= 0; i--){
+            if(str[i] == separator) break; //get out of the loop if needed
+            else str = removeCharAtIndex(str, i); //remove the characters at the right of the separator
+          }
+
+          //remove the lone separator if desired
+          if(removeLoneSeparator) str = removeCharAtIndex(str, separatorIndex);
+        }
+        /// ELSE... there is numbers to the right of the separator to remove
+      }
+
+      /// NOTE: by now the case that occurs when your precision is equal to 0 has been handled
+
+      if(precision == 0) return str;
+      else{ /// NOTE: precision is NEGATIVE
+        separatorIndex = str.indexOf(separator);
+
+        //if the precision is lower than 0 then you MUST remove the separator
+        if(separatorIndex != -1) str = removeCharAtIndex(str, separatorIndex);
+
+        //remove stuff from the back (make sure you don't remove more than the entire string)
+        precision = precision * -1; //turn the number positive
+        precision = (precision < str.length) ? precision : str.length;
+        for(int i = str.length - 1; precision > 0; i--, precision--){
+          str = removeCharAtIndex(str, i);
+        }
+
+        return str;
+      }
+    }
+    else{ /// NOTE: precision is POSITIVE
+      //add the separator if you don't already have it
+      if(separatorIndex == -1){
+        str = str + separator;
+        separatorIndex = str.indexOf(separator);
+      }
+
+      //add whatever the quantity of characters that you need to to meet the precision requirement
+      int desiredLastIndex = separatorIndex + precision;
+      int additionsNeeded = desiredLastIndex - (str.length - 1);
+      for(int i = additionsNeeded; i > 0; i--) str = str + '0';
+
+      return str;
+    }
+  }
+
+  /// --------------------------------------------------OVERRIDES--------------------------------------------------
 
   //can be used to limit device orientation
   @override
@@ -202,6 +261,8 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+
+  /// --------------------------------------------------APP SECTIONS--------------------------------------------------
 
   Widget billSection(){
     return new Card(
@@ -580,6 +641,8 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  /// --------------------------------------------------HELPER WIDGETS--------------------------------------------------
+
   Widget suggestedPercentButton(int percent){
     return Expanded(
       child: new Container(
@@ -607,4 +670,3 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-
