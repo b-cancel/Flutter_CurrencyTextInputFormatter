@@ -34,6 +34,10 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
+  double screenEdgeToCardPadding = 16;
+  double cardEdgeToInfoPadding = 16;
+  double whiteThumbButtonRadius = 12;
+
   /// --------------------------------------------------VARIABLE PREPARATION--------------------------------------------------
 
   bool debugMode = true;
@@ -68,6 +72,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   double tipPercent = 0; //1 is 1.0%
   double tipSliderValue = 0;
+  double tipSliderMin = 0;
+  double tipSliderMax = 50;
 
   String totalString;
   String billString;
@@ -97,11 +103,20 @@ class _MyHomePageState extends State<MyHomePage> {
     if(debugMode) print("UPDATING BILL--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
   }
 
-  void updatedTipPercentField(double tipPercent){
+  void updatedTipPercentField(double tipPercent, {bool updateSlider: true}){
     //update programmatically (bill gets no update)
     this.tipPercent = tipPercent; //REQUIRED
     double tipAmount = billAmount * tipPercent * .01;
     this.totalAmount = billAmount + tipAmount;
+
+    if(updateSlider){
+      setState(() {
+        //update tip and make sure its in range
+        tipSliderValue = tipPercent;
+        tipSliderValue = (tipSliderValue < tipSliderMin) ? tipSliderMin : tipSliderValue;
+        tipSliderValue = (tipSliderValue > tipSliderMax) ? tipSliderMax : tipSliderValue;
+      });
+    }
 
     reformatTotalField();
     if(debugMode) print("UPDATING TIP PERCENT--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
@@ -129,8 +144,8 @@ class _MyHomePageState extends State<MyHomePage> {
     billController.text = billString;
   }
 
-  void reformatTipPercentField({double newValue: -1}){
-    if(newValue != -1) updatedTipPercentField(newValue);
+  void reformatTipPercentField({double newValue: -1, updateSlider: true}){
+    if(newValue != -1) updatedTipPercentField(newValue, updateSlider: updateSlider);
 
     //update variables
     updateStrings();
@@ -215,7 +230,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: ListView(
           children: <Widget>[
             new Padding(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(screenEdgeToCardPadding),
               child: Column(
                 children: <Widget>[
                   new Container(
@@ -266,7 +281,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget billSection(){
     return new Card(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(cardEdgeToInfoPadding),
         child: new Column(
           children: <Widget>[
             new Container(
@@ -293,7 +308,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         keyboardType: TextInputType.number,
                         style: textLargePeach,
                         decoration: InputDecoration(
-                          contentPadding: EdgeInsets.all(0.0),
                           border: InputBorder.none,
                           hintStyle: textLargePeach,
                           hintText: "\$0.00 ",
@@ -410,7 +424,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget tipSection(){
     return Card(
       child: Container(
-        padding: EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(cardEdgeToInfoPadding),
         child: new Column(
           children: <Widget>[
             new Container(
@@ -425,7 +439,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
             new Container(
-              padding: EdgeInsets.only(top: 16),
+              padding: EdgeInsets.only(top: 8),
               child: new Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: <Widget>[
@@ -437,7 +451,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
             new Container(
-              padding: EdgeInsets.only(top: 16),
+              padding: EdgeInsets.only(top: 16.5),
               child: Stack(
                 alignment: Alignment.centerLeft,
                 children: <Widget>[
@@ -461,25 +475,32 @@ class _MyHomePageState extends State<MyHomePage> {
                         setState(() {
                           tipSliderValue = newValue;
                         });
+                        reformatTipPercentField(newValue: tipSliderValue, updateSlider: false);
                       },
-                      min: 0.0,
-                      max: 105.0,
+                      min: tipSliderMin,
+                      max: tipSliderMax, //50
+                      divisions: tipSliderMax.toInt(), //50
                     ),
                   ),
-                  IgnorePointer(
-                    child: new Container(
-                      height: 24,
-                      width: 24,
-                      decoration: new BoxDecoration(
-                        borderRadius: new BorderRadius.all(const Radius.circular(50.0)),
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey[500],
-                            offset: Offset(0.0, 1.5),
-                            blurRadius: 1.5,
-                          ),
-                        ],
+                  Transform.translate(
+                    offset: Offset(
+                    calcX(context, tipSliderValue, tipSliderMin, tipSliderMax)
+                    , 0),
+                    child: IgnorePointer(
+                      child: new Container(
+                        height: whiteThumbButtonRadius * 2,
+                        width: whiteThumbButtonRadius * 2,
+                        decoration: new BoxDecoration(
+                          borderRadius: new BorderRadius.all(const Radius.circular(50.0)),
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey[500],
+                              offset: Offset(0.0, 1.5),
+                              blurRadius: 1.5,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -490,6 +511,17 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
     );
+  }
+
+  double calcX(BuildContext context, double tipSliderValue, double tipSliderMin, double tipSliderMax){
+    //get the screens width and then slowly arrive at the widgets width
+    double screenWidth = MediaQuery.of(context).size.width;
+    //somehow works for both orientations so its probably a hidden padding within one of the pre-made widgets
+    double numberWeGotFromExperimentation = 32;
+    double sliderWidth = screenWidth - (screenEdgeToCardPadding * 2) - (cardEdgeToInfoPadding * 2) - numberWeGotFromExperimentation;
+
+    //set thumb position to be as var as tipSliderValue is given min and max
+    return ((tipSliderValue / tipSliderMax) * sliderWidth);
   }
 
   Widget splitSection(){
@@ -510,7 +542,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
               Container(
-                padding: EdgeInsets.only(top: 16),
+                padding: EdgeInsets.only(top: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
