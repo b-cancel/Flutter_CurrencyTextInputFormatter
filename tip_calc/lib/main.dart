@@ -109,7 +109,7 @@ class _MyHomePageState extends State<MyHomePage> {
   double totalAmount = 0;
   double billAmount = 0;
   double tipPercent = 0; //1 is 1.0%
-  int splitCount = 0;
+  int splitCount = 1; //NOTE: this should never be 0
   double splitResult = 0;
 
   double tipSliderValue = 0;
@@ -134,7 +134,7 @@ class _MyHomePageState extends State<MyHomePage> {
     this.billAmount = billAmount; //REQUIRED
     double tipAmount = billAmount * tipPercent * .01;
     this.totalAmount = billAmount + tipAmount;
-    //TODO... update split result
+    //TODO... update split result && reformat
 
     reformatTotalField();
     printDebug2("UPDATING BILL PERCENT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
@@ -150,7 +150,7 @@ class _MyHomePageState extends State<MyHomePage> {
     this.tipPercent = tipPercent; //REQUIRED
     double tipAmount = billAmount * tipPercent * .01;
     this.totalAmount = billAmount + tipAmount;
-    //TODO... update split result
+    //TODO... update split result && reformat
 
     if(updateSlider){
       setState(() {
@@ -166,42 +166,65 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void updatedTotalField(double totalAmount){
-    /// when [TOTAL AMOUNT] changes
+    /// when [TOTAL AMOUNT] changes (UNDER NORMAL CONDITIONS - total and bill are not 0)
     ///   - [BILL AMOUNT] AND [SPLIT COUNT] stay the same since they are set manually
     ///   - [TIP PERCENT] AND [SPLIT RESULT] changes
-    ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above (EXCEPT IN THIS CASE)
+    ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
 
     //update programmatically
     this.totalAmount = totalAmount; //REQUIRED
     if(totalAmount == 0){
+      if(billAmount != 0){ //total can't be 0 unless bill is 0 [assuming bill is a positive number]
+        billAmount = totalAmount;
 
+        reformatBillField();
+      }
+      /// ELSE... percent isn't updated since its doesn't have to be (0 + X percent tip = 0)
     }
     else{
-      if(billAmount == 0){ //update the bill (this is weird but its implicit)
+      if(billAmount == 0){ //update the bill (this is weird but its implicit because there is nothing else to update)
+        if(tipPercent == 0) {
+          billAmount = totalAmount; //bill + 0 percent tip = total
 
+          reformatBillField();
+        }
+        else{
+          //total = bill + (bill * percent * .01)
+          //T = B + (B * P * .01)
+          //B + (B * P * .01) = T
+          //B + B * P * .01 = T
+          //[1]B + [P * .01]B = T
+          //[1 + (P * .01)]B = T
+          //T / [1 + (P * .01)] = B
+          //Total / [1 + (Percent * .01)] = Bill
+          billAmount = totalAmount / (1 + (tipPercent *.01));
+
+          reformatBillField();
+        }
       }
-      else {
+      else { //NORMAL CONDITIONS
         double tipAmount = totalAmount - billAmount;
         tipPercent = (tipAmount / billAmount) * 100;
-        //TODO... update split result
+
+        reformatTipPercentField();
       }
     }
+    //TODO... update split result && reformat (happens in all cases since in all cases total changes)
 
-    reformatTipPercentField();
     printDebug2("UPDATING TOTAL PERCENT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
   }
 
   void updateSplitCountField(int splitCount){
     /// when [SPLIT COUNT] changes
     ///   - [BILL AMOUNT] AND [TIP PERCENT] AND [TOTAL AMOUNT] stay the same since they are set manually
-    ///   - [SPLIT RESULT] changes
+    ///   - [SPLIT RESULT] changes\
     ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
 
     //update programmatically
-    this.splitCount = (splitCount == 0) ? 1 : splitCount;
-    //TODO... update split result
+    this.splitCount = (splitCount <= 0) ? 1 : splitCount;
+    //TODO... update split result && reformat
 
-    reformatSplitCountField();
+
     printDebug2("UPDATING SPLIT COUNT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
   }
 
