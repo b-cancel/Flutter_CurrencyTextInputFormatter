@@ -116,11 +116,11 @@ class _MyHomePageState extends State<MyHomePage> {
   double tipSliderMin = 0;
   double tipSliderMax = 50;
 
-  String totalString;
-  String billString;
-  String tipPercentString;
-  String splitCountString;
-  String splitResultString;
+  String totalString = "";
+  String billString = "";
+  String tipPercentString = "";
+  String splitCountString = "";
+  String splitResultString = "";
 
   /// --------------------------------------------------UPDATE FIELD FUNCTIONS--------------------------------------------------
 
@@ -137,6 +137,7 @@ class _MyHomePageState extends State<MyHomePage> {
     //TODO... update split result && reformat
 
     reformatTotalField();
+    updateStrings(); //NOTE: not just for debugging
     printDebug2("UPDATING BILL PERCENT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
   }
 
@@ -162,6 +163,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     reformatTotalField();
+    updateStrings(); //NOTE: not just for debugging
     printDebug2("UPDATING TIP PERCENT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
   }
 
@@ -211,6 +213,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     //TODO... update split result && reformat (happens in all cases since in all cases total changes)
 
+    updateStrings(); //NOTE: not just for debugging
     printDebug2("UPDATING TOTAL PERCENT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
   }
 
@@ -224,7 +227,7 @@ class _MyHomePageState extends State<MyHomePage> {
     this.splitCount = (splitCount <= 0) ? 1 : splitCount;
     //TODO... update split result && reformat
 
-
+    updateStrings(); //NOTE: not just for debugging
     printDebug2("UPDATING SPLIT COUNT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
   }
 
@@ -240,46 +243,39 @@ class _MyHomePageState extends State<MyHomePage> {
     //this.totalAmount = splitCount + tipAmount;
 
     //reformatTotalField();
+    updateStrings(); //NOTE: not just for debugging
     printDebug2("UPDATING SPLIT RESULT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
   }
 
   /// --------------------------------------------------REFORMAT FIELD FUNCTIONS--------------------------------------------------
 
   void reformatBillField({double newValue: -1}){
-    if(newValue != -1) updatedBillField(newValue);
-
-    //update variables
-    updateStrings();
+    if(newValue != -1) updatedBillField(newValue); //also updates variables internally
+    else updateStrings();
 
     //actually trigger changes in the form
     billController.text = billString;
   }
 
   void reformatTipPercentField({double newValue: -1, updateSlider: true}){
-    if(newValue != -1) updatedTipPercentField(newValue, updateSlider: updateSlider);
-
-    //update variables
-    updateStrings();
+    if(newValue != -1) updatedTipPercentField(newValue, updateSlider: updateSlider); //also updates variables internally
+    else updateStrings();
 
     //actually trigger changes in the form
     tipController.text = tipPercentString;
   }
 
   void reformatTotalField({double newValue: -1}){
-    if(newValue != -1) updatedTotalField(newValue);
-
-    //update variables
-    updateStrings();
+    if(newValue != -1) updatedTotalField(newValue); //also updates variables internally
+    else updateStrings();
 
     //actually trigger changes in the form
     totalController.text = totalString;
   }
 
   void reformatSplitCountField({int newValue: -1}){
-    if(newValue != -1) updateSplitCountField(newValue);
-
-    //update variables
-    updateStrings();
+    if(newValue != -1) updateSplitCountField(newValue); //also updates variables internally
+    else updateStrings();
 
     //actually trigger changes in the form
     splitCountController.text = splitCountString;
@@ -725,10 +721,13 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ),
                                   border: new Border.all(color: Colors.white),
                                 ),
-                                child: new Icon(
-                                  Icons.remove,
-                                  size: 36,
-                                  color: Colors.white,
+                                child: GestureDetector(
+                                  onTap: () => reformatSplitCountField(newValue: splitCount - 1),
+                                  child: new Icon(
+                                    Icons.remove,
+                                    size: 36,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                               Expanded(
@@ -781,10 +780,13 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ),
                                   border: new Border.all(color: Colors.white),
                                 ),
-                                child: new Icon(
-                                  Icons.add,
-                                  size: 36,
-                                  color: Colors.white,
+                                child: GestureDetector(
+                                  onTap: () => reformatSplitCountField(newValue: splitCount + 1),
+                                  child: new Icon(
+                                    Icons.add,
+                                    size: 36,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ],
