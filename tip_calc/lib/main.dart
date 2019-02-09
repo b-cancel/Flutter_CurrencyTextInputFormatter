@@ -73,50 +73,64 @@ class _MyHomePageState extends State<MyHomePage> {
   String billString;
   String tipPercentString;
 
-  /// --------------------------------------------------MAIN LOGIC FUNCTIONS--------------------------------------------------
+  /// --------------------------------------------------UPDATE FIELD FUNCTIONS--------------------------------------------------
 
-  void updateTotal(double totalAmount){
+  void updatedTotalField(double totalAmount){
     //update programmatically (bill gets no update)
     this.totalAmount = totalAmount; //REQUIRED
     double tipAmount = totalAmount - billAmount;
     if(billAmount == 0) tipPercent = 0;
     else tipPercent = (tipAmount / billAmount) * 100;
 
-    //update variables
-    updateStrings();
-
-    //actually trigger changes in the form
-    tipController.text = tipPercentString;
+    reformatTipPercentField();
     if(debugMode) print("UPDATING TOTAL--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
   }
 
-  void updateBill(double billAmount){
+  void updatedBillField(double billAmount){
 
     //update programmatically (percent gets no update)
     this.billAmount = billAmount; //REQUIRED
     double tipAmount = billAmount * tipPercent * .01;
     this.totalAmount = billAmount + tipAmount;
 
-    //update variables
-    updateStrings();
-
-    //actually trigger changes in the form
-    totalController.text = totalString;
+    reformatTotalField();
     if(debugMode) print("UPDATING BILL--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
   }
 
-  void updateTipPercent(double tipPercent){
+  void updatedTipPercentField(double tipPercent){
     //update programmatically (bill gets no update)
     this.tipPercent = tipPercent; //REQUIRED
     double tipAmount = billAmount * tipPercent * .01;
     this.totalAmount = billAmount + tipAmount;
 
+    reformatTotalField();
+    if(debugMode) print("UPDATING TIP PERCENT--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
+  }
+
+  /// --------------------------------------------------REFORMAT FIELD FUNCTIONS--------------------------------------------------
+
+  void reformatTotalField(){
     //update variables
     updateStrings();
 
     //actually trigger changes in the form
     totalController.text = totalString;
-    if(debugMode) print("UPDATING TIP PERCENT--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
+  }
+
+  void reformatBillField(){
+    //update variables
+    updateStrings();
+
+    //actually trigger changes in the form
+    billController.text = billString;
+  }
+
+  void reformatTipPercentField(){
+    //update variables
+    updateStrings();
+
+    //actually trigger changes in the form
+    tipController.text = tipPercentString;
   }
 
   /// --------------------------------------------------HELPER FUNCTIONS--------------------------------------------------
@@ -141,10 +155,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   /// --------------------------------------------------OVERRIDES--------------------------------------------------
 
-  //can be used to limit device orientation
   @override
   void initState(){
+    //init our parent before ourselves to avoid any strange behavior
     super.initState();
+
+    //can be used to limit device orientation
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -160,24 +176,19 @@ class _MyHomePageState extends State<MyHomePage> {
     //create listeners(these format the field once we leave it)
     totalFocusNode.addListener((){
       if(totalFocusNode.hasFocus == false){
-        print("total lost focus");
-        updateStrings();
-        totalController.text = totalString;
+        reformatTotalField();
       }
     });
 
     billFocusNode.addListener((){
       if(billFocusNode.hasFocus == false){
-        print("bill lost focus");
-        updateStrings();
-        billController.text = billString;
+        reformatBillField();
       }
     });
 
     tipFocusNode.addListener((){
       if(tipFocusNode.hasFocus == false){
-        updateStrings();
-        tipController.text = tipPercentString;
+        reformatTipPercentField();
       }
     });
   }
@@ -282,7 +293,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           hintText: "\$0.00 ",
                         ),
                         inputFormatters: [
-                          new CurrencyTextInputFormatter(updateTotal),
+                          new CurrencyTextInputFormatter(updatedTotalField),
                         ],
                         onEditingComplete: (){
                           FocusScope.of(context).requestFocus(new FocusNode());
@@ -326,7 +337,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 hintText: "\$0.00 ",
                               ),
                               inputFormatters: [
-                                new CurrencyTextInputFormatter(updateBill),
+                                new CurrencyTextInputFormatter(updatedBillField),
                               ],
                               onEditingComplete: (){
                                 FocusScope.of(context).requestFocus(new FocusNode());
@@ -367,7 +378,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               ),
                               inputFormatters: [
                                 new CurrencyTextInputFormatter(
-                                  updateTipPercent,
+                                  updatedTipPercentField,
                                   leftTag: ' ',
                                   rightTag: '%',
                                 ),
