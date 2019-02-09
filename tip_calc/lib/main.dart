@@ -5,6 +5,30 @@ import 'package:tip_calc/currencyFormatter.dart';
 import 'package:tip_calc/currencyUtils.dart';
 import 'package:tip_calc/FormHelper.dart'; /// NOTE: slightly updated version of "Flutter_FeatureFilledForms"
 
+/// FUNCTIONALITY DESCRIBED
+/// there are 5 different things that you can set
+/// 1. bill amount
+/// 2. tip percent
+/// 3. total amount
+/// 4. split count
+/// 5. split result
+///
+/// when BILL changes
+///   - 2 AND 4 stay the same since they are set manually
+///   - 3 changes => causes 5 to change
+/// when TIP changes
+///   - 1 AND 4 stay the same since they are set manually
+///   - 3 changes => causes 5 to change
+/// when TOTAL changes
+///   - 1 AND 4 stay the same since they are set manually
+///   - 2 AND 5 changes
+/// when SPLIT COUNT changes
+///   - 1 AND 2 AND 3 stay the same since they are set manually
+///   - 5 changes
+/// when SPLIT RESULT changes
+///   - 4 AND 1 stay the same
+///   - 2 changes => causes 3 to change
+
 //TODO... show a message if
 // (1) the user placed anything except numbers, and the decimal
 // (2) the text has 2 decimals or more
