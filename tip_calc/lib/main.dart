@@ -109,7 +109,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   /// --------------------------------------------------REFORMAT FIELD FUNCTIONS--------------------------------------------------
 
-  void reformatTotalField(){
+  void reformatTotalField({double newValue: -1}){
+    if(newValue != -1) updatedTotalField(newValue);
+
     //update variables
     updateStrings();
 
@@ -117,7 +119,9 @@ class _MyHomePageState extends State<MyHomePage> {
     totalController.text = totalString;
   }
 
-  void reformatBillField(){
+  void reformatBillField({double newValue: -1}){
+    if(newValue != -1) updatedBillField(newValue);
+
     //update variables
     updateStrings();
 
@@ -125,7 +129,9 @@ class _MyHomePageState extends State<MyHomePage> {
     billController.text = billString;
   }
 
-  void reformatTipPercentField(){
+  void reformatTipPercentField({double newValue: -1}){
+    if(newValue != -1) updatedTipPercentField(newValue);
+
     //update variables
     updateStrings();
 
@@ -408,27 +414,14 @@ class _MyHomePageState extends State<MyHomePage> {
         child: new Column(
           children: <Widget>[
             new Container(
-              child: new Row(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  new Text(
-                    "Tip",
-                    style: TextStyle(
-                      color: textGrey,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16.0,
-                    ),
-                  ),
-                  new Text(
-                    "20%",
-                    style: TextStyle(
-                      color: textPeach,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16.0,
-                    ),
-                  ),
-                ],
+              alignment: Alignment.center,
+              child: new Text(
+                "Tip",
+                style: TextStyle(
+                  color: textGrey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16.0,
+                ),
               ),
             ),
             new Container(
@@ -506,27 +499,14 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Column(
             children: <Widget>[
               new Container(
-                child: new Row(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    new Text(
-                      "Split",
-                      style: TextStyle(
-                        color: textGrey,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16.0,
-                      ),
-                    ),
-                    new Text(
-                      "",
-                      style: TextStyle(
-                        color: textPeach,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16.0,
-                      ),
-                    ),
-                  ],
+                alignment: Alignment.center,
+                child: new Text(
+                  "Split",
+                  style: TextStyle(
+                    color: textGrey,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16.0,
+                  ),
                 ),
               ),
               Container(
@@ -632,26 +612,29 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget suggestedPercentButton(int percent){
     return Expanded(
-      child: new Container(
-        alignment: Alignment.center,
-        margin: EdgeInsets.all(4.0),
-        padding: EdgeInsets.all(8.0),
-        decoration: new BoxDecoration(
-          borderRadius: new BorderRadius.all(const Radius.circular(8.0)),
-          gradient: LinearGradient(
-            colors: [gradientLight, gradientDark],
-            begin: FractionalOffset.bottomRight,
-            end: FractionalOffset.topLeft,
-            stops: [0.0,1.0],
-            tileMode: TileMode.clamp,
+      child: GestureDetector(
+        onTap: () => reformatTipPercentField(newValue: percent.toDouble()),
+        child: new Container(
+          alignment: Alignment.center,
+          margin: EdgeInsets.all(4.0),
+          padding: EdgeInsets.all(8.0),
+          decoration: new BoxDecoration(
+            borderRadius: new BorderRadius.all(const Radius.circular(8.0)),
+            gradient: LinearGradient(
+              colors: [gradientLight, gradientDark],
+              begin: FractionalOffset.bottomRight,
+              end: FractionalOffset.topLeft,
+              stops: [0.0,1.0],
+              tileMode: TileMode.clamp,
+            ),
           ),
-        ),
-        child: new Text(
-          percent.toString() + "%",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
+          child: new Text(
+            percent.toString() + "%",
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+            ),
           ),
         ),
       ),
