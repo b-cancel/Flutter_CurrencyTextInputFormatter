@@ -3,12 +3,12 @@ import 'package:flutter/services.dart';
 
 import 'package:tip_calc/currencyFormatter.dart';
 import 'package:tip_calc/currencyUtils.dart';
+import 'package:tip_calc/FormHelper.dart'; /// NOTE: slightly updated version of "Flutter_FeatureFilledForms"
 
 //TODO... show a message if
 // (1) the user placed anything except numbers, and the decimal
 // (2) the text has 2 decimals or more
-//TODO... we should be able to set starter values for all of the variables (make sure to handle exceptions)
-//TODO... make all starter values mentioned here set as default and not actual values (so user can easily override them) [maybe bool?]
+//TODO... automatically scroll to the field you have selected
 //TODO... only update a fields default if there is something actually different
 
 void main() => runApp(MyApp());
@@ -38,7 +38,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   bool debugMode = true;
 
-  double tipSliderValue = 10.0;
+  FocusNode totalFocusNode = new FocusNode();
+  FocusNode billFocusNode = new FocusNode();
+  FocusNode tipFocusNode = new FocusNode();
 
   TextEditingController totalController = new TextEditingController();
   TextEditingController billController = new TextEditingController();
@@ -61,13 +63,15 @@ class _MyHomePageState extends State<MyHomePage> {
     fontSize: 48.0,
   );
 
+  double totalAmount = 0;
+  double billAmount = 0;
+
+  double tipPercent = 0; //1 is 1.0%
+  double tipSliderValue = 0;
+
   String totalString;
   String billString;
   String tipPercentString;
-
-  double totalAmount = 0;
-  double billAmount = 0;
-  double tipPercent = 0; //1% is 1.0
 
   /// --------------------------------------------------MAIN LOGIC FUNCTIONS--------------------------------------------------
 
@@ -119,17 +123,19 @@ class _MyHomePageState extends State<MyHomePage> {
 
   /// NOTE: this doesn't update things visually
   void updateStrings(){
-    billString = stringDecoration(billAmount, currencyIdentifier: '\$');
-    tipPercentString = stringDecoration(tipPercent, currencyIdentifier: '%', currencyIdentifierOnLeft: false);
-    totalString = stringDecoration(totalAmount, currencyIdentifier: '\$');
+    billString = stringDecoration(billAmount, tag: '\$');
+    tipPercentString = stringDecoration(tipPercent, tag: '%', percent: true);
+    totalString = stringDecoration(totalAmount, tag: '\$');
   }
 
-  String stringDecoration(double number, {String currencyIdentifier: '', bool currencyIdentifierOnLeft: true}){
+  String stringDecoration(double number, {String tag, bool percent: false}){
     String numberString = number.toString();
-    numberString = addTrailing0sString(numberString, '.', 2); //NOTE: this doesn't defines max ONLY a min
+    numberString = ensureMaxDigitsAfterSeparatorString(numberString, '.', 2); //defines max
+    numberString = addTrailing0sString(numberString, '.', 2); //defines min
     numberString = addSpacersString(numberString, '.', ','); //NOTE: I choose to also add this to percent, in case you want to tip 1,000 percent for some reason
-    //numberString = addRightTagString(numberString, currencyIdentifier, currencyIdentifierOnLeft);
-
+    //NOTE: these tags ' ' are so that our number is center
+    numberString = addLeftTagString(numberString, (percent) ? ' ' : '\$');
+    numberString = addRightTagString(numberString, (percent) ? '%' : ' ');
     return numberString;
   }
 
@@ -145,6 +151,35 @@ class _MyHomePageState extends State<MyHomePage> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+
+    //set initial value of 15
+    tipPercent = 15;
+    tipSliderValue = 15;
+    tipController.text = " 15.00%";
+
+    //create listeners(these format the field once we leave it)
+    totalFocusNode.addListener((){
+      if(totalFocusNode.hasFocus == false){
+        print("total lost focus");
+        updateStrings();
+        totalController.text = totalString;
+      }
+    });
+
+    billFocusNode.addListener((){
+      if(billFocusNode.hasFocus == false){
+        print("bill lost focus");
+        updateStrings();
+        billController.text = billString;
+      }
+    });
+
+    tipFocusNode.addListener((){
+      if(tipFocusNode.hasFocus == false){
+        updateStrings();
+        tipController.text = tipPercentString;
+      }
+    });
   }
 
   @override
@@ -234,6 +269,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     new Container(
                       child: TextFormField(
+                        focusNode: totalFocusNode,
                         controller: totalController,
                         textAlign: TextAlign.center,
                         autocorrect: false,
@@ -243,16 +279,13 @@ class _MyHomePageState extends State<MyHomePage> {
                           contentPadding: EdgeInsets.all(0.0),
                           border: InputBorder.none,
                           hintStyle: textLargePeach,
-                          hintText: "\$0.00",
+                          hintText: "\$0.00 ",
                         ),
                         inputFormatters: [
                           new CurrencyTextInputFormatter(updateTotal),
                         ],
                         onEditingComplete: (){
-                          //after we finish editing our value format the value to look pretty
                           FocusScope.of(context).requestFocus(new FocusNode());
-                          updateStrings();
-                          totalController.text = totalString;
                         },
                       ),
                     ),
@@ -280,6 +313,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           Container(
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: TextFormField(
+                              focusNode: billFocusNode,
                               controller: billController,
                               textAlign: TextAlign.center,
                               autocorrect: false,
@@ -289,16 +323,13 @@ class _MyHomePageState extends State<MyHomePage> {
                                 contentPadding: EdgeInsets.all(0.0),
                                 border: InputBorder.none,
                                 hintStyle: textMediumPeach,
-                                hintText: "\$0.00",
+                                hintText: "\$0.00 ",
                               ),
                               inputFormatters: [
                                 new CurrencyTextInputFormatter(updateBill),
                               ],
                               onEditingComplete: (){
-                                //after we finish editing our value format the value to look pretty
                                 FocusScope.of(context).requestFocus(new FocusNode());
-                                updateStrings();
-                                billController.text = billString;
                               },
                             ),
                           ),
@@ -321,6 +352,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           Container(
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: TextFormField(
+                              focusNode: tipFocusNode,
                               controller: tipController,
                               textAlign: TextAlign.center,
                               autocorrect: false,
@@ -330,21 +362,18 @@ class _MyHomePageState extends State<MyHomePage> {
                                 contentPadding: EdgeInsets.all(0.0),
                                 border: InputBorder.none,
                                 hintStyle: textMediumPeach,
-                                hintText: "0.00%",
+                                hintText: " 0.00%",
                                 suffixStyle: textMediumPeach,
                               ),
                               inputFormatters: [
                                 new CurrencyTextInputFormatter(
                                   updateTipPercent,
-                                  leftTag: '%',
-                                  //TODO... percent modifications here
+                                  leftTag: ' ',
+                                  rightTag: '%',
                                 ),
                               ],
                               onEditingComplete: (){
-                                //after we finish editing our value format the value to look pretty
                                 FocusScope.of(context).requestFocus(new FocusNode());
-                                updateStrings();
-                                tipController.text = tipPercentString;
                               },
                             ),
                           ),

@@ -99,7 +99,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         bool addTagToLeft: true,
         String leftTag: '\$',
 
-        bool addTagToRight: false,
+        bool addTagToRight: true,
         String rightTag: ' ',
 
         bool allowLeading0s: false,
@@ -349,7 +349,7 @@ TextEditingValue removeAllButOneSeparator(TextEditingValue oldValue, TextEditing
 
 /// --------------------------------------------------DEBUG MODE--------------------------------------------------
 
-bool debugMode = true;
+bool debugMode = false;
 void printDebug(String description, TextEditingValue oldValue, TextEditingValue newValue){
   if(debugMode){
     print(description + "*************************" + oldValue.text
