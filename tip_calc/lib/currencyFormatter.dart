@@ -155,16 +155,21 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
       printDebug("AFTER INDEX CORRECTION", oldValue, newValue);
 
-      //TODO... I seems like this isn't really necessary but it allow for more identifiers... because it lets our separator value to be within the identifier without causing issues
-      //remove identifiers
-      /*
+      //TODO... I seems like this isn't really necessary but it allows for more tags... because it lets our separator value to be within the identifier without causing issues
+      //remove tags
       if(addTagToLeft){
-        oldValue = removeTag(oldValue, leftTag, true);
-        newValue = removeTag(newValue, leftTag, currencyIdentifierOnLeft);
+        oldValue = removeLeftTag(oldValue, leftTag);
+        newValue = removeLeftTag(newValue, leftTag);
 
-        printDebug("AFTER IDENTIFIER REMOVAL", oldValue, newValue);
+        printDebug("AFTER LEFT TAG REMOVAL", oldValue, newValue);
       }
-      */
+
+      if(addTagToRight){
+        oldValue = removeRightTag(oldValue, rightTag);
+        newValue = removeRightTag(newValue, rightTag);
+
+        printDebug("AFTER RIGHT TAG REMOVAL", oldValue, newValue);
+      }
 
       //TODO... I don't think this is really necessary (BUT it might be usable as an optimization)
       //handle masking (assumes that if this is off the string doesn't have a mask)
@@ -179,9 +184,14 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
       /// NOTE: oldValue is assumed to already follow these rules
 
       // (0) remove anything that isn't a number or a separator
-      // (1) make sure we have AT MOST one separator
+      newValue = removeAllButNumbersAndTheSeparator(newValue, separator);
 
-      printDebug("AFTER ??? - [BOTH SHOULD BE PARASABLE AS DOUBLES -w/o- correct limits]", oldValue, newValue);
+      printDebug("AFTER REMOVING ALL EXCEPT NUMBERS AND THE SEPARATOR", oldValue, newValue);
+
+      // (1) make sure we have AT MOST one separator
+      newValue = removeAllButOneSeparator(oldValue, newValue, separator);
+
+      printDebug("AFTER REMOVING ALL EXCEPT THE FIRST SEPARATOR - [BOTH SHOULD BE PARASABLE AS DOUBLES -w/o- correct limits]", oldValue, newValue);
 
       // (2) remove leading 0s
       if(allowLeading0s == false){
@@ -218,18 +228,23 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         if(debugMode) oldValue = addSpacers(oldValue, separator, spacer); //note: this is only for debugging
         newValue = addSpacers(newValue, separator, spacer);
 
-        printDebug("AFTER MASK ADD", oldValue, newValue);
+        printDebug("AFTER MASK ADDITION", oldValue, newValue);
       }
 
-      //add identifiers (if will only not do so if your identifier is nothing)
-      /*
+      //add tags
       if(addTagToLeft){
-        if(debugMode) oldValue = addTag(oldValue, leftTag, currencyIdentifierOnLeft); //note: this is only for debugging
-        newValue = addTag(newValue, leftTag, currencyIdentifierOnLeft);
+        oldValue = addLeftTag(oldValue, leftTag);
+        newValue = addLeftTag(newValue, leftTag);
 
-        printDebug("AFTER CURRENCY IDENTIFIER ADD", oldValue, newValue);
+        printDebug("AFTER LEFT TAG ADDITION", oldValue, newValue);
       }
-      */
+
+      if(addTagToRight){
+        oldValue = addRightTag(oldValue, rightTag);
+        newValue = addRightTag(newValue, rightTag);
+
+        printDebug("AFTER RIGHT TAG ADDITION", oldValue, newValue);
+      }
 
       oldValue = correctSingleTextEditingValueOffset(oldValue.text, oldValue.selection.baseOffset);
       newValue = correctSingleTextEditingValueOffset(newValue.text, newValue.selection.baseOffset);
@@ -248,133 +263,88 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
 /// --------------------------------------------------ERROR CORRECTING FUNCTIONS--------------------------------------------------
 
-/*
-TextEditingValue removeAllButNumbersAndSeparator(TextEditingValue value, String separator){
-  //prepare variables
-  String text = value.text;
-  int baseOffset = value.selection.baseOffset;
-  int extentOffset = value.selection.extentOffset;
+TextEditingValue removeAllButOneSeparator(TextEditingValue oldValue, TextEditingValue newValue, String separator){
 
-  if(text.length == 0) return value;
-  else{
-    //NOTE: we deleted back to front so we don't have to constantly adjust the index on deletion
-    for(int i = text.length - 1; i >= 0; i--) {
-      if (((48 <= text.codeUnitAt(i) && text.codeUnitAt(i) <= 57) || text[i] == separator) == false){
-        //---remove whatever is at i
-        text = removeCharAtIndex(text, i);
-
-        //---adjust the offset accordingly
-        if(i < baseOffset) baseOffset--;
-        if(i < extentOffset) extentOffset--;
-      }
+  //NOTE: this has been thoroughly tested
+  int addedCharacterCount(TextEditingValue oldValue, String newText){
+    //newCharCount = oldCharCount - numberOfCharsWeRemoved + numberOfCharsWeAddedThatPassed
+    //(newCharCount - oldCharCount) + numberOfCharsWeRemoved = numberOfCharsWeAddedThatPassed
+    int countDifference = newText.length - (oldValue.text).length;
+    /// NOTE: this only includes the characters removed by selection
+    int numberOfCharsWeRemoved = (oldValue.selection.extentOffset) - (oldValue.selection.baseOffset);
+    if(numberOfCharsWeRemoved == 0){ //we didn't remove characters by selection
+      //so we either removed a SINGLE character by deletion => string shortens by 1
+      //OR added characters => string grows by X (the var would be 0 if we added NOT from a selection)
+      numberOfCharsWeRemoved = (newText.length < (oldValue.text).length) ? 1 : 0;
     }
-
-    //return the corrected values
-    return correctTextEditingValueOffsets(
-        TextEditingValue(
-          text: text,
-          selection: TextSelection(baseOffset: baseOffset, extentOffset: extentOffset),
-        )
-    );
+    return countDifference + numberOfCharsWeRemoved;
   }
-}
 
-String removeAllButOneSeparator(String text, String separator, int baseOffset, int extentOffset, int addedCharCount){
-  int firstIndexOfSeparator = text.indexOf(separator);
-  if(firstIndexOfSeparator != -1){ //at least 1 separator exists
-    if(firstIndexOfSeparator != text.lastIndexOf(separator)) { //at least 2 separators exist
-      /// If you DID NOT have any separators before => Which one do you keep? => THE FIRST
-      /// If you DID have 1 separator before => Which one do you keep? => THE OLD ONE
-      ///   BUT => it isn't all ways possible to identify which is the older one with just oldValue and newValue
+  int addedCharactersThatPassedCount = addedCharacterCount(oldValue, newValue.text);
 
-      /// EXAMPLE:
-      /// oldValue = "12.12"
-      /// [1] add by pasting ".12" after the first "12" => newValue = "12[.12].12" = "12.12.12"
-      /// [2] add by pasting "2.1" after "12.1" => newValue = "12.1[2.1]2" = "12.12.12"
-      /// in [1] you add a period in front of the previous one
-      /// in [2] you add a period behind the previous one
-      /// in both cases the result is the same
+  printDebug("Between these 2 value there have been " + addedCharactersThatPassedCount.toString() + " that passed", oldValue, newValue);
 
-      ///   SO => we must use the base and extent offsets
+  if(addedCharactersThatPassedCount > 0){
+    String text = newValue.text;
+    int baseOffset = oldValue.selection.baseOffset;
 
-      // this is safe to use because its impossible to add anything before the baseOffset,
-      // in the worst case it will be 0, which covers the edge case of adding 2+ separators into an empty field
-      // NOTE: for all the fields below (except insertion) its possible for each of them to be empty in different scenarios
-      //  - because of the above we have to make an extra check otherwise substring will duplicate characters at the left end
-      String beforeInsertion = (0 == baseOffset) ? "" : text.substring(0, baseOffset);
-      int lastAdditionIndex = baseOffset + addedCharCount;
-      /// NOTE: this may seem like it requires (lastAdditionIndex + 1) but it doesn't
-      String insertion = text.substring(baseOffset, lastAdditionIndex); //NOTE: this will NEVER be empty
-      String afterInsertion = ((lastAdditionIndex) == text.length) ? "" : text.substring(lastAdditionIndex, text.length);
+    int newBaseOffset = newValue.selection.baseOffset;
+    int newExtentOffset = newValue.selection.extentOffset;
 
-      //remove separators from the back OF THE INSERTION until only the FIRST one is left
-      for(int index = insertion.length - 1; insertion.indexOf(separator) != insertion.lastIndexOf(separator); index--){
-        if(insertion[index] == separator){ //remove extra separator
-          insertion = removeCharAtIndex(insertion, index);
+    int firstIndexOfSeparator = text.indexOf(separator);
+    if(firstIndexOfSeparator != -1){ //at least 1 separator exists
+      if(firstIndexOfSeparator != text.lastIndexOf(separator)) { //at least 2 separators exist
+        /// If you DID NOT have any separators before => Which one do you keep? => THE FIRST
+        /// If you DID have 1 separator before => Which one do you keep? => THE OLD ONE
+        ///   BUT => it isn't all ways possible to identify which is the older one with just oldValue and newValue
+
+        /// EXAMPLE:
+        /// oldValue = "12.12"
+        /// [1] add by pasting ".12" after the first "12" => newValue = "12[.12].12" = "12.12.12"
+        /// [2] add by pasting "2.1" after "12.1" => newValue = "12.1[2.1]2" = "12.12.12"
+        /// in [1] you add a period in front of the previous one
+        /// in [2] you add a period behind the previous one
+        /// in both cases the result is the same
+
+        ///   SO => we must use the base and extent offsets
+
+        // this is safe to use because its impossible to add anything before the baseOffset,
+        // in the worst case it will be 0, which covers the edge case of adding 2+ separators into an empty field
+        // NOTE: for all the fields below (except insertion) its possible for each of them to be empty in different scenarios
+        //  - because of the above we have to make an extra check otherwise substring will duplicate characters at the left end
+        String beforeInsertion = (0 == baseOffset) ? "" : text.substring(0, baseOffset);
+        int lastAdditionIndex = baseOffset + addedCharactersThatPassedCount;
+        /// NOTE: this may seem like it requires (lastAdditionIndex + 1) but it doesn't
+        String insertion = text.substring(baseOffset, lastAdditionIndex); //NOTE: this will NEVER be empty
+        String afterInsertion = ((lastAdditionIndex) == text.length) ? "" : text.substring(lastAdditionIndex, text.length);
+
+        //remove separators from the back OF THE INSERTION until only the FIRST one is left
+        for(int index = insertion.length - 1; insertion.indexOf(separator) != insertion.lastIndexOf(separator); index--){
+          if(insertion[index] == separator){ //remove extra separator
+            insertion = removeCharAtIndex(insertion, index);
+
+            if(index < newBaseOffset) newBaseOffset--;
+            if(index < newExtentOffset) newExtentOffset--;
+          }
         }
+
+        //remove the one separator FROM THE INSERTION if it isn't the only one in the string
+        if(beforeInsertion.contains(separator) || afterInsertion.contains(separator)){ // NOTE: they will never both meet the requirement
+          int separatorIndex = insertion.indexOf(separator);
+          insertion = removeCharAtIndex(insertion, separatorIndex);
+
+          if(separatorIndex < newBaseOffset) newBaseOffset--;
+          if(separatorIndex < newExtentOffset) newExtentOffset--;
+        }
+
+        //return the corrected values
+        return correctTextEditingValueOffsets(newTEV((beforeInsertion + insertion + afterInsertion), newBaseOffset, newExtentOffset));
       }
-
-      //remove the one separator FROM THE INSERTION if it isn't the only one in the string
-      if(beforeInsertion.contains(separator) || afterInsertion.contains(separator)){ // NOTE: they will never both meet the requirement
-        insertion = removeCharAtIndex(insertion, insertion.indexOf(separator));
-      }
-
-      return (beforeInsertion + insertion + afterInsertion);
+      else return newValue; //one separator
     }
-    else return text;
+    else return newValue; //no separator
   }
-  else return text;
-}
-
-/// NOTE: assumes the string has AT MOST one separator
-/// assumes that you want to remove the separator if there are no values after it
-String removeExtraValuesAfterSeparator(String string, int valuesAfterSeparator, {bool showSinglePeriod = false}){
-  if(string.contains('.')){
-    int indexOfDecimal = string.indexOf('.');
-    var beforeSeparator = (0 == indexOfDecimal) ? "" : string.substring(0, indexOfDecimal); //inc, exc
-    int longestAllowableStringLength = indexOfDecimal + valuesAfterSeparator + 1;
-    int stringLength = (longestAllowableStringLength < string.length) ? longestAllowableStringLength : string.length;
-    var separatorToEnd = string.substring(indexOfDecimal, stringLength); //inc, exc
-    var result  = beforeSeparator + separatorToEnd;
-    if(showSinglePeriod == false){
-      result = (valuesAfterSeparator == 0) ? result.substring(0, result.length - 1) : result;
-    }
-    return result;
-  }
-  else return string;
-}
-
-// NOTE: the newStrLen that is passed here is from the string after all the necessary corrections
-int selectionCorrection(int oldBaseOffset, int countOfNewCharsThatPassedFilters){
-  print("characters added " + countOfNewCharsThatPassedFilters.toString());
-  if(countOfNewCharsThatPassedFilters > 0) return (oldBaseOffset + countOfNewCharsThatPassedFilters); //place the cursor after all the inserted characters
-  else return oldBaseOffset;
-
-  //FOR THE ELSE either
-  // (1) nothing was added or deleted at oldBaseOffset
-  // (2) stuff was deleted starting with oldBaseOffset
-  // (3) stuff was trying to get added at oldBaseOffset but didn't pass the tests
-  // (4) or (2) AND (3) starting at oldBaseOffset
-  // in all cases, going to oldBaseOffset works
-}
-*/
-
-/// --------------------------------------------------OTHER FUNCTIONS--------------------------------------------------
-
-//TODO... for readability it might be best to define this in the only place its used
-//NOTE: this has been thoroughly tested
-int addedCharacterCount(TextEditingValue oldValue, String newValue){
-  //newCharCount = oldCharCount - numberOfCharsWeRemoved + numberOfCharsWeAddedThatPassed
-  //(newCharCount - oldCharCount) + numberOfCharsWeRemoved = numberOfCharsWeAddedThatPassed
-  int countDifference = newValue.length - (oldValue.text).length;
-  /// NOTE: this only includes the characters removed by selection
-  int numberOfCharsWeRemoved = (oldValue.selection.extentOffset) - (oldValue.selection.baseOffset);
-  if(numberOfCharsWeRemoved == 0){ //we didn't remove characters by selection
-    //so we either removed a SINGLE character by deletion => string shortens by 1
-    //OR added characters => string grows by X (the var would be 0 if we added NOT from a selection)
-    numberOfCharsWeRemoved = (newValue.length < (oldValue.text).length) ? 1 : 0;
-  }
-  return countDifference + numberOfCharsWeRemoved;
+  else return newValue; //we didn't add characters so we could not have had any more separators than we needed
 }
 
 /// --------------------------------------------------DEBUG MODE--------------------------------------------------

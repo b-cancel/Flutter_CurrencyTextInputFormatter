@@ -65,6 +65,37 @@ String addTrailing0sString(String str, String separator, int minDigitsAfterDecim
   }
 }
 
+/// --------------------------------------------------ERROR CORRECTING FUNCTIONS--------------------------------------------------
+
+String removeAllButNumbersAndTheSeparatorString(String text, String separator){
+  return removeAllButNumbersAndTheSeparator(new TextEditingValue(text: text), separator).text;
+}
+
+TextEditingValue removeAllButNumbersAndTheSeparator(TextEditingValue value, String separator){
+  //prepare variables
+  String text = value.text;
+  int baseOffset = value.selection.baseOffset;
+  int extentOffset = value.selection.extentOffset;
+
+  if(text.length == 0) return value;
+  else{
+    //NOTE: we deleted back to front so we don't have to constantly adjust the index on deletion
+    for(int index = text.length - 1; index >= 0; index--) {
+      if (((48 <= text.codeUnitAt(index) && text.codeUnitAt(index) <= 57) || text[index] == separator) == false){
+        //---remove whatever is at i
+        text = removeCharAtIndex(text, index);
+
+        //---adjust the offset accordingly
+        if(index < baseOffset) baseOffset--;
+        if(index < extentOffset) extentOffset--;
+      }
+    }
+
+    //return the corrected values
+    return correctTextEditingValueOffsets(newTEV(text, baseOffset, extentOffset));
+  }
+}
+
 /// --------------------------------------------------GOOD STRING TO DOUBLE PARSER--------------------------------------------------
 
 /// Handles
