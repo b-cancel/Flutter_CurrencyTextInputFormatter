@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:tip_calc/currencyFormatter.dart';
+import 'package:tip_calc/naturalNumberFormatter.dart';
 import 'package:tip_calc/currencyUtils.dart';
 import 'package:tip_calc/FormHelper.dart'; /// NOTE: slightly updated version of "Flutter_FeatureFilledForms"
+
+//TODO.... don't ever let the split count go lower than 1 IN CODE (as the user types they should be allowed to have a count of 0 or NOTHING)
+//NOTE: all other fields can be cleared without causing an infinite loop
 
 /// FUNCTIONALITY DESCRIBED
 /// there are 5 different things that you can set
@@ -13,21 +17,26 @@ import 'package:tip_calc/FormHelper.dart'; /// NOTE: slightly updated version of
 /// 4. split count
 /// 5. split result
 ///
-/// when BILL changes
-///   - 2 AND 4 stay the same since they are set manually
-///   - 3 changes => causes 5 to change
-/// when TIP changes
-///   - 1 AND 4 stay the same since they are set manually
-///   - 3 changes => causes 5 to change
-/// when TOTAL changes
-///   - 1 AND 4 stay the same since they are set manually
-///   - 2 AND 5 changes
-/// when SPLIT COUNT changes
-///   - 1 AND 2 AND 3 stay the same since they are set manually
-///   - 5 changes
-/// when SPLIT RESULT changes
-///   - 4 AND 1 stay the same
-///   - 2 changes => causes 3 to change
+/// when [BILL AMOUNT] changes
+///   - [TIP PERCENT] AND [SPLIT COUNT] stay the same since they are set manually
+///   - [TOTAL AMOUNT] changes => causes [SPLIT RESULT] to change
+///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
+/// when [TIP PERCENT] changes
+///   - [BILL AMOUNT] AND [SPLIT COUNT] stay the same since they are set manually
+///   - [TOTAL AMOUNT] changes => causes [SPLIT RESULT] to change
+///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
+/// when [TOTAL AMOUNT] changes
+///   - [BILL AMOUNT] AND [SPLIT COUNT] stay the same since they are set manually
+///   - [TIP PERCENT] AND [SPLIT RESULT] changes
+///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
+/// when [SPLIT COUNT] changes
+///   - [BILL AMOUNT] AND [TIP PERCENT] AND [TOTAL AMOUNT] stay the same since they are set manually
+///   - [SPLIT RESULT] changes
+///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
+/// when [SPLIT RESULT] changes
+///   - [SPLIT COUNT] AND [BILL AMOUNT] stay the same
+///   - [TIP PERCENT] changes => causes [TOTAL AMOUNT] to change
+///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
 
 //TODO... show a message if
 // (1) the user placed anything except numbers, and the decimal
@@ -58,21 +67,27 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
-  double screenEdgeToCardPadding = 16;
-  double cardEdgeToInfoPadding = 16;
-  double whiteThumbButtonRadius = 12;
-
   /// --------------------------------------------------VARIABLE PREPARATION--------------------------------------------------
 
   bool debugMode = true;
+
+  double screenEdgeToCardPadding = 16;
+  double cardEdgeToInfoPadding = 16;
+  double whiteThumbButtonRadius = 12;
 
   FocusNode totalFocusNode = new FocusNode();
   FocusNode billFocusNode = new FocusNode();
   FocusNode tipFocusNode = new FocusNode();
 
+  FocusNode splitCountFocusNode = new FocusNode();
+  FocusNode splitResultFocusNode = new FocusNode();
+
   TextEditingController totalController = new TextEditingController();
   TextEditingController billController = new TextEditingController();
   TextEditingController tipController = new TextEditingController();
+
+  TextEditingController splitCountController = new TextEditingController();
+  TextEditingController splitResultController = new TextEditingController();
 
   Color gradientLight = const Color.fromARGB(255, 255, 203, 174);
   Color gradientDark = const Color.fromARGB(255, 255, 128, 148); //const Color.fromARGB(255, 205, 139, 149);
@@ -93,8 +108,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   double totalAmount = 0;
   double billAmount = 0;
-
   double tipPercent = 0; //1 is 1.0%
+  int splitCount = 0;
+  double splitResult = 0;
+
   double tipSliderValue = 0;
   double tipSliderMin = 0;
   double tipSliderMax = 50;
@@ -102,36 +119,38 @@ class _MyHomePageState extends State<MyHomePage> {
   String totalString;
   String billString;
   String tipPercentString;
+  String splitCountString;
+  String splitResultString;
 
   /// --------------------------------------------------UPDATE FIELD FUNCTIONS--------------------------------------------------
 
-  void updatedTotalField(double totalAmount){
-    //update programmatically (bill gets no update)
-    this.totalAmount = totalAmount; //REQUIRED
-    double tipAmount = totalAmount - billAmount;
-    if(billAmount == 0) tipPercent = 0;
-    else tipPercent = (tipAmount / billAmount) * 100;
-
-    reformatTipPercentField();
-    if(debugMode) print("UPDATING TOTAL--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
-  }
-
   void updatedBillField(double billAmount){
+    /// when [BILL AMOUNT] changes
+    ///   - [TIP PERCENT] AND [SPLIT COUNT] stay the same since they are set manually
+    ///   - [TOTAL AMOUNT] changes => causes [SPLIT RESULT] to change
+    ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
 
     //update programmatically (percent gets no update)
     this.billAmount = billAmount; //REQUIRED
     double tipAmount = billAmount * tipPercent * .01;
     this.totalAmount = billAmount + tipAmount;
+    //TODO... update split result
 
     reformatTotalField();
-    if(debugMode) print("UPDATING BILL--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
+    printDebug2("UPDATING BILL PERCENT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
   }
 
   void updatedTipPercentField(double tipPercent, {bool updateSlider: true}){
-    //update programmatically (bill gets no update)
+    /// when [TIP PERCENT] changes
+    ///   - [BILL AMOUNT] AND [SPLIT COUNT] stay the same since they are set manually
+    ///   - [TOTAL AMOUNT] changes => causes [SPLIT RESULT] to change
+    ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
+
+    //update programmatically
     this.tipPercent = tipPercent; //REQUIRED
     double tipAmount = billAmount * tipPercent * .01;
     this.totalAmount = billAmount + tipAmount;
+    //TODO... update split result
 
     if(updateSlider){
       setState(() {
@@ -143,20 +162,65 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     reformatTotalField();
-    if(debugMode) print("UPDATING TIP PERCENT--------------------------------------------------------------------------- " + billString + " + " + tipPercentString + "% = " + totalString);
+    printDebug2("UPDATING TIP PERCENT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
+  }
+
+  void updatedTotalField(double totalAmount){
+    /// when [TOTAL AMOUNT] changes
+    ///   - [BILL AMOUNT] AND [SPLIT COUNT] stay the same since they are set manually
+    ///   - [TIP PERCENT] AND [SPLIT RESULT] changes
+    ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above (EXCEPT IN THIS CASE)
+
+    //update programmatically
+    this.totalAmount = totalAmount; //REQUIRED
+    if(totalAmount == 0){
+
+    }
+    else{
+      if(billAmount == 0){ //update the bill (this is weird but its implicit)
+
+      }
+      else {
+        double tipAmount = totalAmount - billAmount;
+        tipPercent = (tipAmount / billAmount) * 100;
+        //TODO... update split result
+      }
+    }
+
+    reformatTipPercentField();
+    printDebug2("UPDATING TOTAL PERCENT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
+  }
+
+  void updateSplitCountField(int splitCount){
+    /// when [SPLIT COUNT] changes
+    ///   - [BILL AMOUNT] AND [TIP PERCENT] AND [TOTAL AMOUNT] stay the same since they are set manually
+    ///   - [SPLIT RESULT] changes
+    ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
+
+    //update programmatically
+    this.splitCount = (splitCount == 0) ? 1 : splitCount;
+    //TODO... update split result
+
+    reformatSplitCountField();
+    printDebug2("UPDATING SPLIT COUNT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
+  }
+
+  void updateSplitResultField(double splitResult){
+    /// when [SPLIT RESULT] changes
+    ///   - [SPLIT COUNT] AND [BILL AMOUNT] stay the same
+    ///   - [TIP PERCENT] changes => causes [TOTAL AMOUNT] to change
+    ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
+
+    //update programmatically (percent gets no update)
+    //this.billAmount = splitCount; //REQUIRED
+    //double tipAmount = splitCount * tipPercent * .01;
+    //this.totalAmount = splitCount + tipAmount;
+
+    //reformatTotalField();
+    printDebug2("UPDATING SPLIT RESULT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
   }
 
   /// --------------------------------------------------REFORMAT FIELD FUNCTIONS--------------------------------------------------
-
-  void reformatTotalField({double newValue: -1}){
-    if(newValue != -1) updatedTotalField(newValue);
-
-    //update variables
-    updateStrings();
-
-    //actually trigger changes in the form
-    totalController.text = totalString;
-  }
 
   void reformatBillField({double newValue: -1}){
     if(newValue != -1) updatedBillField(newValue);
@@ -178,13 +242,45 @@ class _MyHomePageState extends State<MyHomePage> {
     tipController.text = tipPercentString;
   }
 
+  void reformatTotalField({double newValue: -1}){
+    if(newValue != -1) updatedTotalField(newValue);
+
+    //update variables
+    updateStrings();
+
+    //actually trigger changes in the form
+    totalController.text = totalString;
+  }
+
+  void reformatSplitCountField({int newValue: -1}){
+    if(newValue != -1) updateSplitCountField(newValue);
+
+    //update variables
+    updateStrings();
+
+    //actually trigger changes in the form
+    splitCountController.text = splitCountString;
+  }
+
   /// --------------------------------------------------HELPER FUNCTIONS--------------------------------------------------
 
   /// NOTE: this doesn't update things visually
   void updateStrings(){
-    billString = stringDecoration(billAmount, tag: '\$');
+    //NOTE: this items tagged... GOTCHA
+    // do not require any special correction because this will NEVER be updated by anyone except the user
+    // but they do require correction after you leave the fields themselves so you still need to reformat them
+
+    billString = stringDecoration(billAmount, tag: '\$'); //GOTCHA
     tipPercentString = stringDecoration(tipPercent, tag: '%', percent: true);
     totalString = stringDecoration(totalAmount, tag: '\$');
+    splitCountString = numberDecoration(splitCount); //GOTCHA
+    splitResultString = stringDecoration(splitResult, tag: '\$');
+  }
+
+  String numberDecoration(int number){
+    String numberString = number.toString();
+    numberString = addSpacersString(numberString, '', ',');
+    return numberString;
   }
 
   String stringDecoration(double number, {String tag, bool percent: false}){
@@ -218,13 +314,11 @@ class _MyHomePageState extends State<MyHomePage> {
     tipSliderValue = 15;
     tipController.text = " 15.00%";
 
-    //create listeners(these format the field once we leave it)
-    totalFocusNode.addListener((){
-      if(totalFocusNode.hasFocus == false){
-        reformatTotalField();
-      }
-    });
+    //set initial value of split count
+    splitCount = 1;
+    splitCountController.text = "1";
 
+    //create listeners(these format the field once we leave it)
     billFocusNode.addListener((){
       if(billFocusNode.hasFocus == false){
         reformatBillField();
@@ -234,6 +328,18 @@ class _MyHomePageState extends State<MyHomePage> {
     tipFocusNode.addListener((){
       if(tipFocusNode.hasFocus == false){
         reformatTipPercentField();
+      }
+    });
+
+    totalFocusNode.addListener((){
+      if(totalFocusNode.hasFocus == false){
+        reformatTotalField();
+      }
+    });
+
+    splitCountFocusNode.addListener((){
+      if(totalFocusNode.hasFocus == false){
+        reformatSplitCountField();
       }
     });
   }
@@ -602,12 +708,44 @@ class _MyHomePageState extends State<MyHomePage> {
                                   color: Colors.white,
                                 ),
                               ),
-                              new Container(
-                                child: new Text(
-                                  "5",
-                                  style: TextStyle(
-                                    fontSize: 36,
-                                    color: Colors.white,
+                              Expanded(
+                                child: Transform.translate(
+                                  offset: Offset(0, 4),
+                                  child: new Container(
+                                    child: TextFormField(
+                                      maxLengthEnforced: true,
+                                      maxLength: 9, //1,000,000 is our limit... 7 digits, 2 spacers
+                                      focusNode: splitCountFocusNode,
+                                      controller: splitCountController,
+                                      textAlign: TextAlign.center,
+                                      autocorrect: false,
+                                      keyboardType: TextInputType.number,
+                                      style: TextStyle(
+                                        fontSize: 28,
+                                        color: Colors.white,
+                                      ),
+                                      decoration: InputDecoration(
+                                        contentPadding: EdgeInsets.all(0.0),
+                                        border: InputBorder.none,
+                                        hintStyle: TextStyle(
+                                          fontSize: 28,
+                                          color: Colors.white,
+                                        ),
+                                        hintText: "0",
+                                        //hide the text limit
+                                        helperStyle: TextStyle(
+                                          height: 0,
+                                          fontSize: 0,
+                                          color: Colors.transparent,
+                                        )
+                                      ),
+                                      inputFormatters: [
+                                        NaturalNumberFormatter(updateSplitCountField),
+                                      ],
+                                      onEditingComplete: (){
+                                        FocusScope.of(context).requestFocus(new FocusNode());
+                                      },
+                                    ),
                                   ),
                                 ),
                               ),
@@ -655,6 +793,34 @@ class _MyHomePageState extends State<MyHomePage> {
                         fontSize: 32.0,
                       ),
                     ),
+
+                    /*
+                                    TextFormField(
+                              focusNode: tipFocusNode,
+                              controller: tipController,
+                              textAlign: TextAlign.center,
+                              autocorrect: false,
+                              keyboardType: TextInputType.number,
+                              style: textMediumPeach,
+                              decoration: InputDecoration(
+                                contentPadding: EdgeInsets.all(0.0),
+                                border: InputBorder.none,
+                                hintStyle: textMediumPeach,
+                                hintText: " 0.00%",
+                                suffixStyle: textMediumPeach,
+                              ),
+                              inputFormatters: [
+                                new CurrencyTextInputFormatter(
+                                  updatedTipPercentField,
+                                  leftTag: ' ',
+                                  rightTag: '%',
+                                ),
+                              ],
+                              onEditingComplete: (){
+                                FocusScope.of(context).requestFocus(new FocusNode());
+                              },
+                            ),
+                                     */
                   ],
                 ),
               ),
@@ -694,6 +860,14 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+void printDebug2(String description, String bill, String percent, String total, String splitCount, String splitResult, bool debugMode){
+  if(debugMode){
+    print(description + "*************************" + bill + " + " + percent + " = " + total + "\n"
+        + " / " + splitCount + " = " + splitResult
     );
   }
 }

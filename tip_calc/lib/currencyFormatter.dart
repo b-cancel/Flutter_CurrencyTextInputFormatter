@@ -52,6 +52,8 @@ import 'package:tip_calc/currencyUtils.dart';
 
 class CurrencyTextInputFormatter extends TextInputFormatter {
 
+  bool debugMode = true;
+
   /// --------------------------------------------------VARIABLE PREPARATION--------------------------------------------------
 
   void Function(double) runAfterComplete;
@@ -142,7 +144,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
 
     if(debugMode) print("");
 
-    printDebug("ORIGINAL VALUES", oldValue, newValue);
+    printDebug("ORIGINAL VALUES", oldValue, newValue, debugMode);
 
     if(newValue.text != oldValue.text){ /// NOTE this also includes changes to just our mask (by removing or replacing a spacer)
 
@@ -153,7 +155,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
       oldValue = correctTextEditingValueOffsets(oldValue);
       newValue = correctTextEditingValueOffsets(newValue);
 
-      printDebug("AFTER INDEX CORRECTION", oldValue, newValue);
+      printDebug("AFTER INDEX CORRECTION", oldValue, newValue, debugMode);
 
       //TODO... I seems like this isn't really necessary but it allows for more tags... because it lets our separator value to be within the identifier without causing issues
       //remove tags
@@ -161,14 +163,14 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         oldValue = removeLeftTag(oldValue, leftTag);
         newValue = removeLeftTag(newValue, leftTag);
 
-        printDebug("AFTER LEFT TAG REMOVAL ", oldValue, newValue);
+        printDebug("AFTER LEFT TAG REMOVAL ", oldValue, newValue, debugMode);
       }
 
       if(addTagToRight){
         oldValue = removeRightTag(oldValue, rightTag);
         newValue = removeRightTag(newValue, rightTag);
 
-        printDebug("AFTER RIGHT TAG REMOVAL ", oldValue, newValue);
+        printDebug("AFTER RIGHT TAG REMOVAL ", oldValue, newValue, debugMode);
       }
 
       //TODO... I don't think this is really necessary (BUT it might be usable as an optimization)
@@ -177,7 +179,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         oldValue = removeSpacers(oldValue, spacer);
         newValue = removeSpacers(newValue, spacer);
 
-        printDebug("AFTER MASK REMOVAL", oldValue, newValue);
+        printDebug("AFTER MASK REMOVAL", oldValue, newValue, debugMode);
       }
 
       /// -------------------------MAIN ERROR CORRECTION BELOW-------------------------
@@ -186,37 +188,37 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
       // (0) remove anything that isn't a number or a separator
       newValue = removeAllButNumbersAndTheSeparator(newValue, separator);
 
-      printDebug("AFTER REMOVING ALL EXCEPT NUMBERS AND THE SEPARATOR", oldValue, newValue);
+      printDebug("AFTER REMOVING ALL EXCEPT NUMBERS AND THE SEPARATOR", oldValue, newValue, debugMode);
 
       // (1) make sure we have AT MOST one separator
       newValue = removeAllButOneSeparator(oldValue, newValue, separator);
 
-      printDebug("AFTER REMOVING ALL EXCEPT THE FIRST SEPARATOR - [BOTH SHOULD BE PARASABLE AS DOUBLES -w/o- correct limits]", oldValue, newValue);
+      printDebug("AFTER REMOVING ALL EXCEPT THE FIRST SEPARATOR - [BOTH SHOULD BE PARASABLE AS DOUBLES -w/o- correct limits]", oldValue, newValue, debugMode);
 
       // (2) remove leading 0s
       if(allowLeading0s == false){
         newValue = removeLeading0s(newValue);
 
-        printDebug("AFTER REMOVE LEADING 0s", oldValue, newValue);
+        printDebug("AFTER REMOVE LEADING 0s", oldValue, newValue, debugMode);
       }
 
       // (3) ensure limits before decimal
       if(enforceMaxDigitsBefore){
         newValue = ensureMaxDigitsBeforeSeparator(newValue, separator, maxDigitsBeforeDecimal);
 
-        printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue);
+        printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue, debugMode);
       }
 
       // (4) ensure limits after decimal
       if(enforceMaxDigitsAfter){
         newValue = ensureMaxDigitsAfterSeparator(newValue, separator, maxDigitsAfterDecimal);
 
-        printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue);
+        printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue, debugMode);
       }
 
       /// -------------------------MAIN ERROR CORRECTION ABOVE-------------------------
 
-      printDebug("AFTER ERROR CORRECTION - [BOTH SHOULD BE PARASABLE AS DOUBLES -with- correct limits]", oldValue, newValue);
+      printDebug("AFTER ERROR CORRECTION - [BOTH SHOULD BE PARASABLE AS DOUBLES -with- correct limits]", oldValue, newValue, debugMode);
 
       //run passed function that saves our currency as a double
       double oldDouble = convertToDouble(oldValue.text);
@@ -228,7 +230,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         if(debugMode) oldValue = addSpacers(oldValue, separator, spacer); //note: this is only for debugging
         newValue = addSpacers(newValue, separator, spacer);
 
-        printDebug("AFTER MASK ADDITION", oldValue, newValue);
+        printDebug("AFTER MASK ADDITION", oldValue, newValue, debugMode);
       }
 
       //add tags
@@ -236,20 +238,20 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         oldValue = addLeftTag(oldValue, leftTag);
         newValue = addLeftTag(newValue, leftTag);
 
-        printDebug("AFTER LEFT TAG ADDITION" + leftTag + " <", oldValue, newValue);
+        printDebug("AFTER LEFT TAG ADDITION" + leftTag + " <", oldValue, newValue, debugMode);
       }
 
       if(addTagToRight){
         oldValue = addRightTag(oldValue, rightTag);
         newValue = addRightTag(newValue, rightTag);
 
-        printDebug("AFTER RIGHT TAG ADDITION" + rightTag + " <", oldValue, newValue);
+        printDebug("AFTER RIGHT TAG ADDITION" + rightTag + " <", oldValue, newValue, debugMode);
       }
 
       oldValue = correctSingleTextEditingValueOffset(oldValue.text, oldValue.selection.baseOffset);
       newValue = correctSingleTextEditingValueOffset(newValue.text, newValue.selection.baseOffset);
 
-      printDebug("FINAL VALUES", oldValue, newValue);
+      printDebug("FINAL VALUES", oldValue, newValue, debugMode);
 
       if(debugMode) print("");
 
@@ -281,8 +283,6 @@ TextEditingValue removeAllButOneSeparator(TextEditingValue oldValue, TextEditing
   }
 
   int addedCharactersThatPassedCount = addedCharacterCount(oldValue, newValue.text);
-
-  printDebug("Between these 2 value there have been " + addedCharactersThatPassedCount.toString() + " that passed", oldValue, newValue);
 
   if(addedCharactersThatPassedCount > 0){
     String text = newValue.text;
@@ -345,17 +345,4 @@ TextEditingValue removeAllButOneSeparator(TextEditingValue oldValue, TextEditing
     else return newValue; //no separator
   }
   else return newValue; //we didn't add characters so we could not have had any more separators than we needed
-}
-
-/// --------------------------------------------------DEBUG MODE--------------------------------------------------
-
-bool debugMode = false;
-void printDebug(String description, TextEditingValue oldValue, TextEditingValue newValue){
-  if(debugMode){
-    print(description + "*************************" + oldValue.text
-        + " [" + oldValue.selection.baseOffset.toString() + "->" + oldValue.selection.extentOffset.toString() + "]"
-        + " => " + newValue.text
-        + " [" + newValue.selection.baseOffset.toString() + "->" + newValue.selection.extentOffset.toString() + "]"
-    );
-  }
 }

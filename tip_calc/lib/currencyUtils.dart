@@ -99,6 +99,16 @@ TextEditingValue removeAllButNumbersAndTheSeparator(TextEditingValue value, Stri
 /// --------------------------------------------------GOOD STRING TO DOUBLE PARSER--------------------------------------------------
 
 /// Handles
+/// 1. empty strings
+///
+/// Already Handled
+/// 1. string with leading 0s
+int convertToInt(String str){
+  if(str == "") return 0;
+  else return int.parse(str);
+}
+
+/// Handles
 /// 1. strings with ANY separator (not just a decimal)
 /// 2. empty strings
 /// 2. strings with just a separator
@@ -438,4 +448,16 @@ String removeCharAtIndex(String str, int index){
   //tertiary op used for exception where there is no first half
   String firstHalf = (0 == index) ? "" : str.substring(0, index);
   return firstHalf + str.substring(index + 1);
+}
+
+/// --------------------------------------------------DEBUG MODE--------------------------------------------------
+
+void printDebug(String description, TextEditingValue oldValue, TextEditingValue newValue, debugMode){
+  if(debugMode){
+    print(description + "*************************" + oldValue.text
+        + " [" + oldValue.selection.baseOffset.toString() + "->" + oldValue.selection.extentOffset.toString() + "]"
+        + " => " + newValue.text
+        + " [" + newValue.selection.baseOffset.toString() + "->" + newValue.selection.extentOffset.toString() + "]"
+    );
+  }
 }
