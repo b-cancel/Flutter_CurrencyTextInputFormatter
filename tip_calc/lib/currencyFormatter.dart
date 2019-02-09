@@ -85,8 +85,8 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
       Function runAfterComplete,
       {
         /// NOTE: this is USD format
-        bool enforceMaxDigitsBefore: false,
-        int maxDigitsBeforeDecimal: 0,
+        bool enforceMaxDigitsBefore: true,
+        int maxDigitsBeforeDecimal: 7,
 
         bool enforceMaxDigitsAfter: true,
         int maxDigitsAfterDecimal: 2,
@@ -99,7 +99,7 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         bool addTagToLeft: true,
         String leftTag: '\$',
 
-        bool addTagToRight: true,
+        bool addTagToRight: false,
         String rightTag: ' ',
 
         bool allowLeading0s: false,
@@ -120,8 +120,8 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
     this.addTagToLeft = addTagToLeft;
     this.leftTag = leftTag;
 
-    this.addTagToRight = addTagToLeft;
-    this.rightTag = leftTag;
+    this.addTagToRight = addTagToRight;
+    this.rightTag = rightTag;
 
     this.allowLeading0s = allowLeading0s;
   }
@@ -161,14 +161,14 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         oldValue = removeLeftTag(oldValue, leftTag);
         newValue = removeLeftTag(newValue, leftTag);
 
-        printDebug("AFTER LEFT TAG REMOVAL", oldValue, newValue);
+        printDebug("AFTER LEFT TAG REMOVAL ", oldValue, newValue);
       }
 
       if(addTagToRight){
         oldValue = removeRightTag(oldValue, rightTag);
         newValue = removeRightTag(newValue, rightTag);
 
-        printDebug("AFTER RIGHT TAG REMOVAL", oldValue, newValue);
+        printDebug("AFTER RIGHT TAG REMOVAL ", oldValue, newValue);
       }
 
       //TODO... I don't think this is really necessary (BUT it might be usable as an optimization)
@@ -236,14 +236,14 @@ class CurrencyTextInputFormatter extends TextInputFormatter {
         oldValue = addLeftTag(oldValue, leftTag);
         newValue = addLeftTag(newValue, leftTag);
 
-        printDebug("AFTER LEFT TAG ADDITION", oldValue, newValue);
+        printDebug("AFTER LEFT TAG ADDITION" + leftTag + " <", oldValue, newValue);
       }
 
       if(addTagToRight){
         oldValue = addRightTag(oldValue, rightTag);
         newValue = addRightTag(newValue, rightTag);
 
-        printDebug("AFTER RIGHT TAG ADDITION", oldValue, newValue);
+        printDebug("AFTER RIGHT TAG ADDITION" + rightTag + " <", oldValue, newValue);
       }
 
       oldValue = correctSingleTextEditingValueOffset(oldValue.text, oldValue.selection.baseOffset);
