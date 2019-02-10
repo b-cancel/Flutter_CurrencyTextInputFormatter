@@ -831,36 +831,40 @@ class _MyHomePageState extends State<MyHomePage> {
                         fontSize: 22.0,
                       ),
                     ),
-                    TextFormField(
-                      focusNode: splitResultFocusNode,
-                      controller: splitResultController,
-                      textAlign: TextAlign.right,
-                      autocorrect: false,
-                      keyboardType: TextInputType.number,
-                      style: TextStyle(
-                        color: textPeach,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 32.0,
-                      ),
-                      decoration: InputDecoration(
-                        contentPadding: EdgeInsets.all(0.0),
-                        border: InputBorder.none,
-                        hintStyle: TextStyle(
-                          color: textPeach,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 32.0,
+                    Expanded(
+                      child: Container(
+                        child: TextFormField(
+                          focusNode: splitResultFocusNode,
+                          controller: splitResultController,
+                          textAlign: TextAlign.right,
+                          autocorrect: false,
+                          keyboardType: TextInputType.number,
+                          style: TextStyle(
+                            color: textPeach,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 32.0,
+                          ),
+                          decoration: InputDecoration(
+                            contentPadding: EdgeInsets.all(0.0),
+                            border: InputBorder.none,
+                            hintStyle: TextStyle(
+                              color: textPeach,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 32.0,
+                            ),
+                            hintText: " 0.00%",
+                          ),
+                          inputFormatters: [
+                            new CurrencyTextInputFormatter(
+                              updatedSplitResultField,
+                            ),
+                          ],
+                          onEditingComplete: (){
+                            FocusScope.of(context).requestFocus(new FocusNode());
+                          },
                         ),
-                        hintText: " 0.00%",
                       ),
-                      inputFormatters: [
-                        new CurrencyTextInputFormatter(
-                          updatedSplitResultField,
-                        ),
-                      ],
-                      onEditingComplete: (){
-                        FocusScope.of(context).requestFocus(new FocusNode());
-                      },
-                    ),
+                    )
                   ],
                 ),
               ),
