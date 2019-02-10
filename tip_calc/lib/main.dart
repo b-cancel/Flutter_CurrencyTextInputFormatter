@@ -6,9 +6,6 @@ import 'package:tip_calc/naturalNumberFormatter.dart';
 import 'package:tip_calc/currencyUtils.dart';
 import 'package:tip_calc/FormHelper.dart'; /// NOTE: slightly updated version of "Flutter_FeatureFilledForms"
 
-//TODO.... don't ever let the split count go lower than 1 IN CODE (as the user types they should be allowed to have a count of 0 or NOTHING)
-//NOTE: all other fields can be cleared without causing an infinite loop
-
 /// FUNCTIONALITY DESCRIBED
 /// there are 5 different things that you can set
 /// 1. bill amount
@@ -25,7 +22,7 @@ import 'package:tip_calc/FormHelper.dart'; /// NOTE: slightly updated version of
 ///   - [BILL AMOUNT] AND [SPLIT COUNT] stay the same since they are set manually
 ///   - [TOTAL AMOUNT] changes => causes [SPLIT RESULT] to change
 ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
-/// when [TOTAL AMOUNT] changes
+/// when [TOTAL AMOUNT] changes (UNDER NORMAL CONDITIONS - total and bill are not 0)
 ///   - [BILL AMOUNT] AND [SPLIT COUNT] stay the same since they are set manually
 ///   - [TIP PERCENT] AND [SPLIT RESULT] changes
 ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
@@ -34,15 +31,11 @@ import 'package:tip_calc/FormHelper.dart'; /// NOTE: slightly updated version of
 ///   - [SPLIT RESULT] changes
 ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
 /// when [SPLIT RESULT] changes
-///   - [SPLIT COUNT] AND [BILL AMOUNT] stay the same
-///   - [TIP PERCENT] changes => causes [TOTAL AMOUNT] to change
-///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
+///   - SEE TOTAL CODE
 
-//TODO... show a message if
+//TODO... we could show a message if (but for the sake of the UI design of this calculator we won't)
 // (1) the user placed anything except numbers, and the decimal
 // (2) the text has 2 decimals or more
-//TODO... automatically scroll to the field you have selected
-//TODO... only update a fields default if there is something actually different
 
 void main() => runApp(MyApp());
 
@@ -134,10 +127,13 @@ class _MyHomePageState extends State<MyHomePage> {
     this.billAmount = billAmount; //REQUIRED
     double tipAmount = billAmount * tipPercent * .01;
     this.totalAmount = billAmount + tipAmount;
-    //TODO... update split result && reformat
+    splitResult = totalAmount / splitCount; //NOTE: split count will NEVER be 0
 
     reformatTotalField();
+    reformatSplitResultField();
+
     updateStrings(); //NOTE: not just for debugging
+
     printDebug2("UPDATING BILL PERCENT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
   }
 
@@ -151,7 +147,7 @@ class _MyHomePageState extends State<MyHomePage> {
     this.tipPercent = tipPercent; //REQUIRED
     double tipAmount = billAmount * tipPercent * .01;
     this.totalAmount = billAmount + tipAmount;
-    //TODO... update split result && reformat
+    splitResult = totalAmount / splitCount; //NOTE: split count will NEVER be 0
 
     if(updateSlider){
       setState(() {
@@ -163,7 +159,10 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     reformatTotalField();
+    reformatSplitResultField();
+
     updateStrings(); //NOTE: not just for debugging
+
     printDebug2("UPDATING TIP PERCENT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
   }
 
@@ -175,6 +174,98 @@ class _MyHomePageState extends State<MyHomePage> {
 
     //update programmatically
     this.totalAmount = totalAmount; //REQUIRED
+    updateOtherGivenTotal();
+
+    //update split result that always changes since we changed the total
+    splitResult = totalAmount / splitCount; //NOTE: split count will NEVER be 0
+    reformatSplitResultField();
+
+    updateStrings(); //NOTE: not just for debugging
+
+    printDebug2("UPDATING TOTAL PERCENT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
+  }
+
+  void updatedSplitCountField(int splitCount){
+    /// when [SPLIT COUNT] changes
+    ///   - [BILL AMOUNT] AND [TIP PERCENT] AND [TOTAL AMOUNT] stay the same since they are set manually
+    ///   - [SPLIT RESULT] changes
+    ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
+
+    //update programmatically
+    this.splitCount = (splitCount <= 0) ? 1 : splitCount;
+
+    //update split result that always changes since we changed the total
+    splitResult = totalAmount / splitCount; //NOTE: split count will NEVER be 0
+    reformatSplitResultField();
+
+    updateStrings(); //NOTE: not just for debugging
+    printDebug2("UPDATING SPLIT COUNT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
+  }
+
+  void updatedSplitResultField(double splitResult){
+    /// when [SPLIT RESULT] changes
+    ///   - SEE TOTAL CODE
+
+    // 1. bill + (bill * percent * .01) = total
+    // 2. total / split count = split result
+    // 1 & 2 implies: total = split count * split result
+    totalAmount = splitCount * splitResult;
+    updateOtherGivenTotal();
+
+    //updat total
+    reformatTotalField();
+
+    updateStrings(); //NOTE: not just for debugging
+
+    printDebug2("UPDATING SPLIT RESULT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
+  }
+
+  /// --------------------------------------------------REFORMAT FIELD FUNCTIONS--------------------------------------------------
+
+  void reformatBillField({double newValue: -1}){
+    if(newValue != -1) updatedBillField(newValue); //also updates variables internally
+    else updateStrings();
+
+    //actually trigger changes in the form
+    billController.text = billString;
+  }
+
+  void reformatTipPercentField({double newValue: -1, updateSlider: true}){
+    if(newValue != -1) updatedTipPercentField(newValue, updateSlider: updateSlider); //also updates variables internally
+    else updateStrings();
+
+    //actually trigger changes in the form
+    tipController.text = tipPercentString;
+  }
+
+  void reformatTotalField({double newValue: -1}){
+    if(newValue != -1) updatedTotalField(newValue); //also updates variables internally
+    else updateStrings();
+
+    //actually trigger changes in the form
+    totalController.text = totalString;
+  }
+
+  void reformatSplitCountField({int newValue: -1}){
+    if(newValue != -1) updatedSplitCountField(newValue); //also updates variables internally
+    else updateStrings();
+
+    //actually trigger changes in the form
+    splitCountController.text = splitCountString;
+  }
+
+  void reformatSplitResultField({double newValue: -1}){
+    if(newValue != -1) updatedSplitResultField(newValue); //also updates variables internally
+    else updateStrings();
+
+    //actually trigger changes in the form
+    splitResultController.text = splitResultString;
+  }
+
+  /// --------------------------------------------------HELPER FUNCTIONS--------------------------------------------------
+
+  /// ASSUMES: total was set right before this
+  void updateOtherGivenTotal(){
     if(totalAmount == 0){
       if(billAmount != 0){ //total can't be 0 unless bill is 0 [assuming bill is a positive number]
         billAmount = totalAmount;
@@ -211,77 +302,7 @@ class _MyHomePageState extends State<MyHomePage> {
         reformatTipPercentField();
       }
     }
-    //TODO... update split result && reformat (happens in all cases since in all cases total changes)
-
-    updateStrings(); //NOTE: not just for debugging
-    printDebug2("UPDATING TOTAL PERCENT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
   }
-
-  void updateSplitCountField(int splitCount){
-    /// when [SPLIT COUNT] changes
-    ///   - [BILL AMOUNT] AND [TIP PERCENT] AND [TOTAL AMOUNT] stay the same since they are set manually
-    ///   - [SPLIT RESULT] changes\
-    ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
-
-    //update programmatically
-    this.splitCount = (splitCount <= 0) ? 1 : splitCount;
-    //TODO... update split result && reformat
-
-    updateStrings(); //NOTE: not just for debugging
-    printDebug2("UPDATING SPLIT COUNT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
-  }
-
-  void updateSplitResultField(double splitResult){
-    /// when [SPLIT RESULT] changes
-    ///   - [SPLIT COUNT] AND [BILL AMOUNT] stay the same
-    ///   - [TIP PERCENT] changes => causes [TOTAL AMOUNT] to change
-    ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
-
-    //update programmatically (percent gets no update)
-    //this.billAmount = splitCount; //REQUIRED
-    //double tipAmount = splitCount * tipPercent * .01;
-    //this.totalAmount = splitCount + tipAmount;
-
-    //reformatTotalField();
-    updateStrings(); //NOTE: not just for debugging
-    printDebug2("UPDATING SPLIT RESULT", billString, tipPercentString, totalString, splitCountString, splitResultString, debugMode);
-  }
-
-  /// --------------------------------------------------REFORMAT FIELD FUNCTIONS--------------------------------------------------
-
-  void reformatBillField({double newValue: -1}){
-    if(newValue != -1) updatedBillField(newValue); //also updates variables internally
-    else updateStrings();
-
-    //actually trigger changes in the form
-    billController.text = billString;
-  }
-
-  void reformatTipPercentField({double newValue: -1, updateSlider: true}){
-    if(newValue != -1) updatedTipPercentField(newValue, updateSlider: updateSlider); //also updates variables internally
-    else updateStrings();
-
-    //actually trigger changes in the form
-    tipController.text = tipPercentString;
-  }
-
-  void reformatTotalField({double newValue: -1}){
-    if(newValue != -1) updatedTotalField(newValue); //also updates variables internally
-    else updateStrings();
-
-    //actually trigger changes in the form
-    totalController.text = totalString;
-  }
-
-  void reformatSplitCountField({int newValue: -1}){
-    if(newValue != -1) updateSplitCountField(newValue); //also updates variables internally
-    else updateStrings();
-
-    //actually trigger changes in the form
-    splitCountController.text = splitCountString;
-  }
-
-  /// --------------------------------------------------HELPER FUNCTIONS--------------------------------------------------
 
   /// NOTE: this doesn't update things visually
   void updateStrings(){
@@ -762,7 +783,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                         )
                                       ),
                                       inputFormatters: [
-                                        NaturalNumberFormatter(updateSplitCountField),
+                                        NaturalNumberFormatter(updatedSplitCountField),
                                       ],
                                       onEditingComplete: (){
                                         FocusScope.of(context).requestFocus(new FocusNode());
@@ -810,42 +831,36 @@ class _MyHomePageState extends State<MyHomePage> {
                         fontSize: 22.0,
                       ),
                     ),
-                    new Text(
-                      "\$21.03",
+                    TextFormField(
+                      focusNode: splitResultFocusNode,
+                      controller: splitResultController,
+                      textAlign: TextAlign.right,
+                      autocorrect: false,
+                      keyboardType: TextInputType.number,
                       style: TextStyle(
                         color: textPeach,
                         fontWeight: FontWeight.bold,
                         fontSize: 32.0,
                       ),
+                      decoration: InputDecoration(
+                        contentPadding: EdgeInsets.all(0.0),
+                        border: InputBorder.none,
+                        hintStyle: TextStyle(
+                          color: textPeach,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 32.0,
+                        ),
+                        hintText: " 0.00%",
+                      ),
+                      inputFormatters: [
+                        new CurrencyTextInputFormatter(
+                          updatedSplitResultField,
+                        ),
+                      ],
+                      onEditingComplete: (){
+                        FocusScope.of(context).requestFocus(new FocusNode());
+                      },
                     ),
-
-                    /*
-                                    TextFormField(
-                              focusNode: tipFocusNode,
-                              controller: tipController,
-                              textAlign: TextAlign.center,
-                              autocorrect: false,
-                              keyboardType: TextInputType.number,
-                              style: textMediumPeach,
-                              decoration: InputDecoration(
-                                contentPadding: EdgeInsets.all(0.0),
-                                border: InputBorder.none,
-                                hintStyle: textMediumPeach,
-                                hintText: " 0.00%",
-                                suffixStyle: textMediumPeach,
-                              ),
-                              inputFormatters: [
-                                new CurrencyTextInputFormatter(
-                                  updatedTipPercentField,
-                                  leftTag: ' ',
-                                  rightTag: '%',
-                                ),
-                              ],
-                              onEditingComplete: (){
-                                FocusScope.of(context).requestFocus(new FocusNode());
-                              },
-                            ),
-                                     */
                   ],
                 ),
               ),
