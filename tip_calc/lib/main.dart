@@ -32,11 +32,16 @@ import 'package:tip_calc/currencyUtils.dart';
 /// when [SPLIT RESULT] changes
 ///   - SEE TOTAL CODE
 
-//TODO... we could show a message if (but for the sake of the UI design of this calculator we won't)
-// (1) the user placed anything except numbers, and the decimal
-// (2) the text has 2 decimals or more
+/// FUTURE PLANS
+/// TODO... add at least a single 0 in front of any number that has a decimal but has no number in front of it
+/// TODO... we could show a message if (but for the sake of the UI design of this calculator we won't)
+/// (1) the user placed anything except numbers, and the decimal
+/// (2) the text has 2 decimals or more
+
+/// IMPORTANT REPAIRS
 //TODO... fix issue were on very rare scenarios the tip field will update but not the slider
-// - when updating the splitResult... MAYBE also when updating the total...
+// - when updating the splitResult... MAYBE also when updating the total... (they share a common function)
+//TODO... fix issue were changing split total can give use a negative tip
 
 void main() => runApp(MyApp());
 
@@ -265,6 +270,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   /// --------------------------------------------------HELPER FUNCTIONS--------------------------------------------------
 
+  //TODO... fix negative tip problem here
+  //TODO... fix tip not updating slider problem here
   /// ASSUMES: total was set right before this
   void updateOtherGivenTotal(){
     if(totalAmount == 0){
@@ -489,7 +496,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         decoration: InputDecoration(
                           border: InputBorder.none,
                           hintStyle: textLargePeach,
-                          hintText: "\$0.00 ",
+                          hintText: "\$0 ",
                         ),
                         inputFormatters: [
                           new CurrencyTextInputFormatter(updatedTotalField),
@@ -533,7 +540,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 contentPadding: EdgeInsets.all(0.0),
                                 border: InputBorder.none,
                                 hintStyle: textMediumPeach,
-                                hintText: "\$0.00 ",
+                                hintText: "\$0 ",
                               ),
                               inputFormatters: [
                                 new CurrencyTextInputFormatter(updatedBillField),
@@ -572,7 +579,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 contentPadding: EdgeInsets.all(0.0),
                                 border: InputBorder.none,
                                 hintStyle: textMediumPeach,
-                                hintText: " 0.00%",
+                                hintText: " 0%",
                                 suffixStyle: textMediumPeach,
                               ),
                               inputFormatters: [
@@ -861,7 +868,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               fontWeight: FontWeight.bold,
                               fontSize: 32.0,
                             ),
-                            hintText: " 0.00%",
+                            hintText: " 0%",
                           ),
                           inputFormatters: [
                             new CurrencyTextInputFormatter(

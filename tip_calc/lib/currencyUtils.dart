@@ -1,12 +1,13 @@
 import 'package:flutter/services.dart';
 
-//TODO... only if RIGHT to LEFT number systems are a thing
-//TODO... removeTrailing0sString
-//TODO... removeTrailing0s
-//TODO... addLeading0sString
-//TODO... addLeading0s
-//---
-//TODO... addTrailing0s
+/// FUTURE PLANS
+/// TODO... only if RIGHT to LEFT number systems are a thing
+/// TODO... removeTrailing0sString
+/// TODO... removeTrailing0s
+/// TODO... addLeading0sString
+/// TODO... addLeading0s
+/// ---
+/// TODO... addTrailing0s
 
 /// --------------------------------------------------SPECIFIC TO LEFT TO RIGHT NUMBER SYSTEMS
 
