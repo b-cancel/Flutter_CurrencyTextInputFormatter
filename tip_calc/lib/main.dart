@@ -35,6 +35,8 @@ import 'package:tip_calc/currencyUtils.dart';
 //TODO... we could show a message if (but for the sake of the UI design of this calculator we won't)
 // (1) the user placed anything except numbers, and the decimal
 // (2) the text has 2 decimals or more
+//TODO... fix issue were on very rare scenarios the tip field will update but not the slider
+// - when updating the splitResult... MAYBE also when updating the total...
 
 void main() => runApp(MyApp());
 
@@ -323,9 +325,17 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   String stringDecoration(double number, {String tag, bool percent: false}){
+    bool alsoAnInt = ((number - number.toInt()).toDouble() == 0) ? true : false;
+    print("basically an int? " + alsoAnInt.toString());
+
     String numberString = number.toString();
-    numberString = ensureMaxDigitsAfterSeparatorString(numberString, '.', 2); //defines max
-    numberString = addTrailing0sString(numberString, '.', 2); //defines min
+    if(alsoAnInt){ //correct the double parsing to look like an int because it is
+      numberString = numberString.substring(0, numberString.indexOf('.'));
+    }
+    else{ //handle actually being returned a double
+      numberString = ensureMaxDigitsAfterSeparatorString(numberString, '.', 2); //defines max
+      numberString = addTrailing0sString(numberString, '.', 2); //defines min
+    }
     numberString = addSpacersString(numberString, '.', ','); //NOTE: I choose to also add this to percent, in case you want to tip 1,000 percent for some reason
     //NOTE: these tags ' ' are so that our number is center
     numberString = addLeftTagString(numberString, (percent) ? ' ' : '\$');
@@ -351,7 +361,7 @@ class _MyHomePageState extends State<MyHomePage> {
     //set initial value of 15
     tipPercent = 15;
     tipSliderValue = 15;
-    tipController.text = " 15.00%";
+    tipController.text = " 15%";
 
     //set initial value of split count
     splitCount = 1;
