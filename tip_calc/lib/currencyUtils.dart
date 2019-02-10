@@ -328,6 +328,7 @@ TextEditingValue addSpacers(TextEditingValue value, String separator, String spa
 
     //prepare some variables before the main loop
     bool passedSeparator = (text.contains(separator)) ? false : true;
+    passedSeparator = (separator == '') ? true : false; //because it doesn't exist
     int numbersPassed = 0;
 
     //define the function we will be using within the loop

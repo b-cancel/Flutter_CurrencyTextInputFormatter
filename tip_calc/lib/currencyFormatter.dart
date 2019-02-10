@@ -52,7 +52,7 @@ import 'package:tip_calc/currencyUtils.dart';
 
 class CurrencyTextInputFormatter extends TextInputFormatter {
 
-  bool debugMode = true;
+  bool debugMode = false;
 
   /// --------------------------------------------------VARIABLE PREPARATION--------------------------------------------------
 

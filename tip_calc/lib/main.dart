@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:tip_calc/currencyFormatter.dart';
 import 'package:tip_calc/naturalNumberFormatter.dart';
 import 'package:tip_calc/currencyUtils.dart';
-import 'package:tip_calc/FormHelper.dart'; /// NOTE: slightly updated version of "Flutter_FeatureFilledForms"
 
 /// FUNCTIONALITY DESCRIBED
 /// there are 5 different things that you can set
