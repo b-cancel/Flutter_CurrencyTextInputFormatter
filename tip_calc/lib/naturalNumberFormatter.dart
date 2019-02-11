@@ -56,6 +56,9 @@ class NaturalNumberFormatter extends TextInputFormatter {
 
   bool allowLeading0s;
 
+  bool enforceMaxDigits;
+  int maxDigits; /// NOTE: this should be >= 0
+
   //USD format is default
   NaturalNumberFormatter(
       Function runAfterComplete,
@@ -64,6 +67,9 @@ class NaturalNumberFormatter extends TextInputFormatter {
       String spacer: ',',
 
       bool allowLeading0s: false,
+
+      bool enforceMaxDigits: true,
+      int maxDigits: 7,
     }) {
     this.runAfterComplete = runAfterComplete;
 
@@ -71,6 +77,9 @@ class NaturalNumberFormatter extends TextInputFormatter {
     this.spacer = spacer;
 
     this.allowLeading0s = allowLeading0s;
+
+    this.enforceMaxDigits = true;
+    this.maxDigits = 7;
   }
 
   /// --------------------------------------------------MAIN FUNCTION--------------------------------------------------
@@ -101,6 +110,13 @@ class NaturalNumberFormatter extends TextInputFormatter {
       newValue = removeLeading0s(newValue);
 
       printDebug("AFTER REMOVE LEADING 0s", oldValue, newValue, debugMode);
+    }
+
+    //ensure limits before decimal
+    if(enforceMaxDigits){
+      newValue = ensureMaxDigitsBeforeSeparator(newValue, '', maxDigits);
+
+      printDebug("AFTER ENSURE DIGITS BEFORE DECIMAL", oldValue, newValue, debugMode);
     }
 
     /// --------------------------------------------------ALL FILTERS APPLIED

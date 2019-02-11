@@ -175,6 +175,7 @@ TextEditingValue ensureMaxDigits(TextEditingValue value, String separator, int m
   //grab the string that we care about
   String stringSectionWeCareAbout;
   int separatorIndex = text.indexOf(separator);
+  separatorIndex = (separator == '') ? -1 : separatorIndex; //correction for strange DART bug I presume
   if(separatorIndex == -1) stringSectionWeCareAbout =  (removeBeforeSeparator) ? text : "";
   else{
     if(removeBeforeSeparator) stringSectionWeCareAbout = text.substring(0, separatorIndex); //doesn't include separator
@@ -186,6 +187,7 @@ TextEditingValue ensureMaxDigits(TextEditingValue value, String separator, int m
 
   //operate on strings
   int removalsRequired = stringSectionWeCareAbout.length - maxDigits;
+  print("length we care about " + stringSectionWeCareAbout.length.toString() + " vs max digits" + maxDigits.toString() + " removals required " + removalsRequired.toString());
   if(removalsRequired > 0){
     //remove the undesired values
     while(removalsRequired > 0){

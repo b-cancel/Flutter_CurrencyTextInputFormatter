@@ -42,6 +42,7 @@ import 'package:tip_calc/currencyUtils.dart';
 //TODO... fix issue were on very rare scenarios the tip field will update but not the slider
 // - when updating the splitResult... MAYBE also when updating the total... (they share a common function)
 //TODO... fix issue were changing split total can give use a negative tip
+//TODO... have text edit controller keep the selection values IF possible
 
 void main() => runApp(MyApp());
 
@@ -394,7 +395,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     splitCountFocusNode.addListener((){
-      if(totalFocusNode.hasFocus == false){
+      if(splitCountFocusNode.hasFocus == false){
         reformatSplitCountField();
       }
     });
@@ -759,7 +760,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                   border: new Border.all(color: Colors.white),
                                 ),
                                 child: GestureDetector(
-                                  onTap: () => reformatSplitCountField(newValue: splitCount - 1),
+                                  onTap: (){
+                                    reformatSplitCountField(newValue: splitCount - 1);
+                                    FocusScope.of(context).requestFocus(new FocusNode());
+                                  },
                                   child: new Icon(
                                     Icons.remove,
                                     size: 36,
@@ -772,8 +776,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                   offset: Offset(0, 4),
                                   child: new Container(
                                     child: TextFormField(
-                                      maxLengthEnforced: true,
-                                      maxLength: 9, //1,000,000 is our limit... 7 digits, 2 spacers
+                                      //NOTE: using the regular text length enforcer can have very bad effects
+                                      // since it will limit the characters but it will still use the massive value
                                       focusNode: splitCountFocusNode,
                                       controller: splitCountController,
                                       textAlign: TextAlign.center,
@@ -818,7 +822,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                   border: new Border.all(color: Colors.white),
                                 ),
                                 child: GestureDetector(
-                                  onTap: () => reformatSplitCountField(newValue: splitCount + 1),
+                                  onTap: (){
+                                    reformatSplitCountField(newValue: splitCount + 1);
+                                    FocusScope.of(context).requestFocus(new FocusNode());
+                                  },
                                   child: new Icon(
                                     Icons.add,
                                     size: 36,
@@ -868,7 +875,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               fontWeight: FontWeight.bold,
                               fontSize: 32.0,
                             ),
-                            hintText: " 0%",
+                            hintText: "\$0",
                           ),
                           inputFormatters: [
                             new CurrencyTextInputFormatter(

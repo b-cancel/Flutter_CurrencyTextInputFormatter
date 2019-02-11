@@ -5,6 +5,7 @@ import 'package:tip_calc/currencyUtils.dart';
 ///   1. run sub string with an index that points to characters that a string doesn't cover
 ///   2. try to += to a string set to null
 ///   3. double.parse parsing just a period
+///   4. text.indexOf('') returns 0 for some reason...
 
 /// FLUTTER BUGS:
 /// 1. I can select the text in the input field but I can't move the start tick, ONLY the end tick
