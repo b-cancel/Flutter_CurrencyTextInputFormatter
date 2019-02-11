@@ -365,7 +365,6 @@ class _MyHomePageState extends State<MyHomePage> {
       numberString = addTrailing0sString(numberString, '.', 2); //defines min
     }
     numberString = addSpacersString(numberString, '.', ','); //NOTE: I choose to also add this to percent, in case you want to tip 1,000 percent for some reason
-    print("new number string: " + numberString);
     //NOTE: these tags ' ' are so that our number is center
     numberString = addLeftTagString(numberString, (percent) ? ' ' : '\$');
     numberString = addRightTagString(numberString, (percent) ? '%' : ' ');

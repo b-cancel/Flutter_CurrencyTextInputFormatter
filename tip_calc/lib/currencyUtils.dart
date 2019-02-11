@@ -188,7 +188,6 @@ TextEditingValue ensureMaxDigits(TextEditingValue value, String separator, int m
 
   //operate on strings
   int removalsRequired = stringSectionWeCareAbout.length - maxDigits;
-  print("length we care about " + stringSectionWeCareAbout.length.toString() + " vs max digits" + maxDigits.toString() + " removals required " + removalsRequired.toString());
   if(removalsRequired > 0){
     //remove the undesired values
     while(removalsRequired > 0){
@@ -330,9 +329,10 @@ TextEditingValue addSpacers(TextEditingValue value, String separator, String spa
     int baseOffset = value.selection.baseOffset;
     int extentOffset = value.selection.extentOffset;
 
+
     //prepare some variables before the main loop
-    bool passedSeparator = (text.contains(separator)) ? false : true;
-    passedSeparator = (separator == '') ? true : false; //because it doesn't exist
+    bool passedSeparator = (text.indexOf(separator) == -1) ? true : false;
+    passedSeparator = (separator == '') ? true : passedSeparator; //because it doesn't exist
     int numbersPassed = 0;
 
     //define the function we will be using within the loop
