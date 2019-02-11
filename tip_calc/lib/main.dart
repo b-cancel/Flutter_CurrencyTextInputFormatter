@@ -54,6 +54,7 @@ import 'package:tip_calc/currencyUtils.dart';
 ///     cuz nobody is going to be super attached to giving the waiter exactly 20% tip
 
 /// IMPORTANT REPAIRS
+//TODO... guarantee that any split will at least result in .01 cent per person
 //TODO... fix issue were on very rare scenarios the tip field will update but not the slider
 // - when updating the splitResult... MAYBE also when updating the total... (they share a common function)
 //TODO... fix issue were changing split total can give use a negative tip
