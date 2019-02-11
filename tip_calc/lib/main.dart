@@ -31,18 +31,29 @@ import 'package:tip_calc/currencyUtils.dart';
 ///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
 /// when [SPLIT RESULT] changes
 ///   - SEE TOTAL CODE
+///
+/// AMOUNT LIMITS
+/// Bill - ???
+/// TODO... after we get the calculator to properly handle weird things like what happens whenever we update (1) total or (2) split total [only certain edge cases]
+/// Tip - 3 Digits (seriously tho why?)
+/// Total - WILL BE >= BILL
+/// Split Count - 7 Digits (remember that if you divide amongst enough the quantity is below .01 and I didn't plan for that ridiculous circumstance)
+/// Split Result - SHOULD BE =< TOTAL (should since you could technically tip a ton more than you paid)
 
 /// FUTURE PLANS
 /// TODO... add at least a single 0 in front of any number that has a decimal but has no number in front of it
 /// TODO... we could show a message if (but for the sake of the UI design of this calculator we won't)
 /// (1) the user placed anything except numbers, and the decimal
 /// (2) the text has 2 decimals or more
+/// TODO... expand tool kit to ensure a certain number of digits by rounding and not truncating
+/// TODO... have text edit controller keep the selection values IF possible
 
 /// IMPORTANT REPAIRS
 //TODO... fix issue were on very rare scenarios the tip field will update but not the slider
 // - when updating the splitResult... MAYBE also when updating the total... (they share a common function)
 //TODO... fix issue were changing split total can give use a negative tip
-//TODO... have text edit controller keep the selection values IF possible
+//TODO... limit how many numbers can be displayed in every field for visual purposes... AFTER handling the total or split result updating edge case optimally
+
 
 void main() => runApp(MyApp());
 
@@ -500,7 +511,10 @@ class _MyHomePageState extends State<MyHomePage> {
                           hintText: "\$0 ",
                         ),
                         inputFormatters: [
-                          new CurrencyTextInputFormatter(updatedTotalField),
+                          new CurrencyTextInputFormatter(
+                            updatedTotalField,
+                            enforceMaxDigitsBefore: false,
+                          ),
                         ],
                         onEditingComplete: (){
                           FocusScope.of(context).requestFocus(new FocusNode());
@@ -544,7 +558,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                 hintText: "\$0 ",
                               ),
                               inputFormatters: [
-                                new CurrencyTextInputFormatter(updatedBillField),
+                                new CurrencyTextInputFormatter(
+                                  updatedBillField,
+                                  enforceMaxDigitsBefore: false,
+                                ),
                               ],
                               onEditingComplete: (){
                                 FocusScope.of(context).requestFocus(new FocusNode());
@@ -586,6 +603,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               inputFormatters: [
                                 new CurrencyTextInputFormatter(
                                   updatedTipPercentField,
+                                  enforceMaxDigitsBefore: false,
                                   leftTag: ' ',
                                   rightTag: '%',
                                 ),
