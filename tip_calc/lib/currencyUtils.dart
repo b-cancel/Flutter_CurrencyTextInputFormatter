@@ -166,6 +166,7 @@ String ensureMaxDigitsString(String text, String separator, int maxDigits, {bool
   return ensureMaxDigits(new TextEditingValue(text: text), separator, maxDigits, removeBeforeSeparator: removeBeforeSeparator).text;
 }
 
+/// NOTE: we assume that number without a separator must be a whole number
 TextEditingValue ensureMaxDigits(TextEditingValue value, String separator, int maxDigits, {bool removeBeforeSeparator}){ //TODO... final testing
   //prepare out variables
   String text = value.text;

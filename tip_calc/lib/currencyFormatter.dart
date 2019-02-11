@@ -293,6 +293,7 @@ TextEditingValue removeAllButOneSeparator(TextEditingValue oldValue, TextEditing
     int newExtentOffset = newValue.selection.extentOffset;
 
     int firstIndexOfSeparator = text.indexOf(separator);
+    firstIndexOfSeparator = (separator == '') ? -1 : separator; //fix weird DART bug (i guess you could classify it as such)
     if(firstIndexOfSeparator != -1){ //at least 1 separator exists
       if(firstIndexOfSeparator != text.lastIndexOf(separator)) { //at least 2 separators exist
         /// If you DID NOT have any separators before => Which one do you keep? => THE FIRST

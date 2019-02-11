@@ -47,6 +47,11 @@ import 'package:tip_calc/currencyUtils.dart';
 /// (2) the text has 2 decimals or more
 /// TODO... expand tool kit to ensure a certain number of digits by rounding and not truncating
 /// TODO... have text edit controller keep the selection values IF possible
+/// TODO... add a feature that lets you budget how much you can spend on your meal given everything else...
+///   locks for edit NOT update... locks for 2 of 3 things (total & split result | tip | bill)
+///   you can PROBABLY safely assume that they want an UPDATE lock on total if they lock that (on top of the update lock)
+///   you can IMPLY that they want to update total and have percent update to match their locked update...
+///     cuz nobody is going to be super attached to giving the waiter exactly 20% tip
 
 /// IMPORTANT REPAIRS
 //TODO... fix issue were on very rare scenarios the tip field will update but not the slider
@@ -167,14 +172,7 @@ class _MyHomePageState extends State<MyHomePage> {
     this.totalAmount = billAmount + tipAmount;
     splitResult = totalAmount / splitCount; //NOTE: split count will NEVER be 0
 
-    if(updateSlider){
-      setState(() {
-        //update tip and make sure its in range
-        tipSliderValue = tipPercent;
-        tipSliderValue = (tipSliderValue < tipSliderMin) ? tipSliderMin : tipSliderValue;
-        tipSliderValue = (tipSliderValue > tipSliderMax) ? tipSliderMax : tipSliderValue;
-      });
-    }
+    if(updateSlider) updateTipSlider();
 
     reformatTotalField();
     reformatSplitResultField();
@@ -230,7 +228,7 @@ class _MyHomePageState extends State<MyHomePage> {
     totalAmount = splitCount * splitResult;
     updateOtherGivenTotal();
 
-    //updat total
+    //update total
     reformatTotalField();
 
     updateStrings(); //NOTE: not just for debugging
@@ -320,8 +318,19 @@ class _MyHomePageState extends State<MyHomePage> {
         tipPercent = (tipAmount / billAmount) * 100;
 
         reformatTipPercentField();
+
+        updateTipSlider();
       }
     }
+  }
+
+  void updateTipSlider(){
+    setState(() {
+      //update tip and make sure its in range
+      tipSliderValue = tipPercent;
+      tipSliderValue = (tipSliderValue < tipSliderMin) ? tipSliderMin : tipSliderValue;
+      tipSliderValue = (tipSliderValue > tipSliderMax) ? tipSliderMax : tipSliderValue;
+    });
   }
 
   /// NOTE: this doesn't update things visually
@@ -345,7 +354,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   String stringDecoration(double number, {String tag, bool percent: false}){
     bool alsoAnInt = ((number - number.toInt()).toDouble() == 0) ? true : false;
-    print("basically an int? " + alsoAnInt.toString());
 
     String numberString = number.toString();
     if(alsoAnInt){ //correct the double parsing to look like an int because it is
@@ -356,6 +364,7 @@ class _MyHomePageState extends State<MyHomePage> {
       numberString = addTrailing0sString(numberString, '.', 2); //defines min
     }
     numberString = addSpacersString(numberString, '.', ','); //NOTE: I choose to also add this to percent, in case you want to tip 1,000 percent for some reason
+    print("new number string: " + numberString);
     //NOTE: these tags ' ' are so that our number is center
     numberString = addLeftTagString(numberString, (percent) ? ' ' : '\$');
     numberString = addRightTagString(numberString, (percent) ? '%' : ' ');
