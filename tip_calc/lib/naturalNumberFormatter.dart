@@ -38,6 +38,9 @@ import 'package:tip_calc/currencyUtils.dart';
 ///   - although I do have an "ensureMinDigitsAfterSeparatorString" function to beautify formatting after editing is complete
 ///     - this ONLY truncates, feel free to implement rounding up or down or using the rules of significant figures
 
+///  TODO... make it possible to also handle negative numbers (so expand to integers but keep the switch open)
+///  TODO... make it possible to allow or disallow 0s (right now not allowing leading 0s is making it impossible to type 0 as an option)
+
 class NaturalNumberFormatter extends TextInputFormatter {
 
   bool debugMode = true;

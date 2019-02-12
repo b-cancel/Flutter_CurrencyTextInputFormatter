@@ -13,24 +13,38 @@ import 'package:tip_calc/currencyUtils.dart';
 /// 4. split count
 /// 5. split result
 ///
-/// when [BILL AMOUNT] changes
-///   - [TIP PERCENT] AND [SPLIT COUNT] stay the same since they are set manually
-///   - [TOTAL AMOUNT] changes => causes [SPLIT RESULT] to change
-///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
-/// when [TIP PERCENT] changes
-///   - [BILL AMOUNT] AND [SPLIT COUNT] stay the same since they are set manually
-///   - [TOTAL AMOUNT] changes => causes [SPLIT RESULT] to change
-///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
-/// when [TOTAL AMOUNT] changes (UNDER NORMAL CONDITIONS - total and bill are not 0)
-///   - [BILL AMOUNT] AND [SPLIT COUNT] stay the same since they are set manually
-///   - [TIP PERCENT] AND [SPLIT RESULT] changes
-///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
-/// when [SPLIT COUNT] changes
-///   - [BILL AMOUNT] AND [TIP PERCENT] AND [TOTAL AMOUNT] stay the same since they are set manually
-///   - [SPLIT RESULT] changes
-///   - [BILL AMOUNT] OR [SPLIT COUNT] should never be in the line above
-/// when [SPLIT RESULT] changes
-///   - SEE TOTAL CODE
+/// Keep in mind that: [3] * [4] = [5]
+/// since [3] is set manually by the user and NEVER changed by the system (since humans don't just spawn or get deleted for convenience)
+/// whenever we change [3] [5] also changes and whenever we change [5] [3] also changes
+/// so for the sake of simplifying the problem we can assume they are one value
+/// for the sake of simplicity we will call this value [T]
+///
+/// when [1] changes
+/// - we can imply that [2] was set by the user
+/// - and therefore update [T]
+/// - TODO... create floating button above keyboard that lets the system assume you want [2] to update instead
+///   - NOTE: why anyone would ever use this is beyond me but since its useful in the scenarios below we might as well keep things standard (or we could hide it)
+///     - I guess you could use this to know how bad to feel for only being able to tip your waiter 8% because you are a poor fella that really should have stayed home
+/// - NOTE: because of the way changing [1] changes our other values there are no crazy edge cases to cover
+///   - TODO... if we allow users to do the TODO above then there will be
+///
+/// when [2] changes
+/// - we can imply that [1] was set by the user
+/// - and therefore update [T]
+/// - TODO... create floating button above keyboard that lets the system assume you want [1] to update instead
+///   - NOTE: why anyone would ever use this is beyond me but since its useful in the scenarios below we might as well keep things standard (or we could hide it)
+/// - NOTE: because of the way changing [2] changes our other values there are no crazy edge cases to cover
+///   - TODO... if we allow users to do the TODO above then there will be
+///
+/// when [T] changes
+/// - we can imply that [1] was set by the user
+/// - and therefore update [2]
+/// - TODO... create floating button above keyboard that lets the system assume you want [1] to update instead
+///   - NOTE: unlike in the example above this is ACTUALLY USEFUL
+///     - this is because if you only have 20 bucks but want to tip 15% the calculator can tell you what is the max you can spend on your tab
+/// - NOTE: because of the way changing [T] changes our other values we end up with a TON of edge cases
+///   - TODO... if we start off in an end case we should remain updating all the values using that edge case UNTIL we leave the field
+///     - TODO... adding the extra button that allows you to flip implicit behavior will also create more scenarios to cover
 ///
 /// AMOUNT LIMITS
 /// Bill - ???
@@ -55,11 +69,9 @@ import 'package:tip_calc/currencyUtils.dart';
 
 /// IMPORTANT REPAIRS
 //TODO... guarantee that any split will at least result in .01 cent per person
-//TODO... fix issue were on very rare scenarios the tip field will update but not the slider
 // - when updating the splitResult... MAYBE also when updating the total... (they share a common function)
 //TODO... fix issue were changing split total can give use a negative tip
 //TODO... limit how many numbers can be displayed in every field for visual purposes... AFTER handling the total or split result updating edge case optimally
-
 
 void main() => runApp(MyApp());
 
