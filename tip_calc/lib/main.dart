@@ -520,6 +520,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     new Container(
                       child: TextFormField(
+                        enabled: false, //TODO... enable this eventually when I handle all the edge cases above
                         focusNode: totalFocusNode,
                         controller: totalController,
                         textAlign: TextAlign.center,
@@ -817,6 +818,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                     child: TextFormField(
                                       //NOTE: using the regular text length enforcer can have very bad effects
                                       // since it will limit the characters but it will still use the massive value
+                                      enabled: false, //TODO... enable this eventually when I handle all the edge cases above
                                       focusNode: splitCountFocusNode,
                                       controller: splitCountController,
                                       textAlign: TextAlign.center,
@@ -896,6 +898,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     Expanded(
                       child: Container(
                         child: TextFormField(
+                          enabled: false, //TODO... enable this eventually when I handle all the edge cases above
                           focusNode: splitResultFocusNode,
                           controller: splitResultController,
                           textAlign: TextAlign.right,
